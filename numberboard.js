@@ -1,10 +1,12 @@
+import { ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
+
 // Number board functionality
 const board = document.getElementById('numberBoard');
 let calledNumbers = [];
 let isBoardUnlocked = false;
 
 // Listen to called numbers from Firebase
-bingoRef.child('calledNumbers').on('child_added', (snapshot) => {
+onChildAdded(ref(database, 'bingo-game/calledNumbers'), (snapshot) => {
     const number = snapshot.val();
     
     // Mark number on number board
@@ -52,7 +54,7 @@ function callNumber(number, cell) {
 
     // Mark the number as called
     // Push to Firebase instead of local array
-    bingoRef.child('calledNumbers').push(number);
+    push(ref(database, 'bingo-game/calledNumbers'), number)
     cell.classList.add('called');
     cell.classList.add('disabled');
 
@@ -122,7 +124,7 @@ function resetGame() {
     });
 
     // Clear Firebase called numbers
-    bingoRef.child('calledNumbers').remove();
+    remove(ref(database, 'bingo-game/calledNumbers'));
 }
 
 // Modify generateBingoCard to reset called numbers
@@ -140,7 +142,7 @@ function generateBingoCard() {
     isBoardUnlocked = false;
     board.classList.remove('unlocked');
 
-    bingoRef.child('calledNumbers').remove();
+    remove(ref(database, 'bingo-game/calledNumbers'));
 }
 
 // Add this to ensure jQuery-like :contains selector works
