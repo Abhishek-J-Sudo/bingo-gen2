@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Generator (1-25)</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            flex-direction: column;
+            /*padding-bottom: 100px;*/
+            margin: 0px;
+        }
+        h1,h2,h3{
+            margin: 10px;
+        }
+        table { 
+            border-collapse: collapse; 
+            margin: auto; 
+        }
+        td { 
+            width: 50px; 
+            height: 50px; 
+            text-align: center; 
+            font-size: 20px; 
+            border: 1px solid black; 
+            cursor: pointer; 
+        }
+        .marked { 
+            background-color: red; 
+            color: white; 
+            text-decoration: line-through; 
+        }
+        .called-numbers {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 20px 0px;
+            max-width: 200px;
+            min-width: 200px;
+            height: 175px;
+        }
+
+        #calledNumbersList {
+            display: flex;
+            flex-wrap: wrap; /* Allows elements to wrap */
+            flex-direction: row; /* Ensures horizontal layout */
+            max-width: 200px;
+            gap: 5px; /* Adds space between items */
+        }
+
+        .called-numbers div {
+            flex: 1 1 calc(20% - 10px); /* Makes sure 5 items fit in one row */
+            max-width: calc(20% - 10px); /* Limits max width to ensure 5 per row */
+            text-align: center;
+        }
+
+        .game-container {
+        display: flex;
+        align-items: flex-start;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #efefef;
+        }
+
+        .lock-section {
+            display: flex;
+            margin-top: 10px;
+            column-gap: 10px;
+        }
+        #numberInput, #lockKey {
+            width: 150px;
+            margin-right: 10px;
+        }
+
+        /* CSS */
+        .button-6 {
+          align-items: center;
+          background-color: #efefef;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          border-radius: .25rem;
+          box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+          box-sizing: border-box;
+          color: rgba(0, 0, 0, 0.85);
+          cursor: pointer;
+          display: inline-flex;
+          font-family: system-ui,-apple-system,system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
+          font-size: 16px;
+          font-weight: 600;
+          justify-content: center;
+          line-height: 1.25;
+          margin: 0;
+          min-height: 3rem;
+          padding: calc(.875rem - 1px) calc(1.5rem - 1px);
+          position: relative;
+          text-decoration: none;
+          transition: all 250ms;
+          user-select: none;
+          -webkit-user-select: none;
+          touch-action: manipulation;
+          vertical-align: baseline;
+          width: 30px;
+          margin-top: auto;
+          margin-right: 20px;
+        }
+
+        .button-6:hover,
+        .button-6:focus {
+          border-color: rgba(0, 0, 0, 0.15);
+          box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+          color: rgba(0, 0, 0, 0.65);
+        }
+
+        .button-6:hover {
+          transform: translateY(-1px);
+        }
+
+        .button-6:active {
+          background-color: #F0F0F1;
+          border-color: rgba(0, 0, 0, 0.15);
+          box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
+          color: rgba(0, 0, 0, 0.65);
+          transform: translateY(0);
+        }
+        td {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #ccc;
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        td:hover {
+            background-color: #e0e0e0;
+        }
+        td.called {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        td.disabled {
+            background-color: #f0f0f0;
+            color: #999;
+            cursor: not-allowed;
+        }
+        #numberBoard td{
+            height: 30px;
+            width: 30px;
+            color: #837f7f;
+        }
+        .column2{
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bingo Card Generator (Numbers 1-25)</h1>
+    
+    <div class="game-container">
+        <table id="bingoTable"></table>
+        <div class="column2">
+            <div class="called-numbers">
+                <span style="color: #9c9c9c; padding-bottom: 10px; border-bottom: 1px solid #efefef; margin-bottom: 10px;">Called Numbers</span>
+                <div id="calledNumbersList"></div>
+            </div>
+            <button class="button-6">Reset</button>
+        </div>
+    </div>
+    <span>For Bingo caller only</span>
+    <div class="lock-section">
+        <input type="password" id="lockKey" placeholder="Enter Key">
+        <button class="button-6" style="width: 100px!important; margin: 0px!important; padding: 0px!important; min-height: 2rem!important;" onclick="unlockInput()">Unlock</button>
+    </div>
+    <div class="lock-section">
+        <table id="numberBoard" style="margin: auto; border-collapse: collapse;">
+            <tr>
+                <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
+            </tr>
+             <tr>
+                <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
+            </tr>
+             <tr>
+                <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
+            </tr>
+        </table>
+    </div>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-analytics.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+        apiKey: "AIzaSyAfMv6xDycWfuF2IYWnuKiDoGxrXsGG41k",
+        authDomain: "bingo-gen-4a60f.firebaseapp.com",
+        projectId: "bingo-gen-4a60f",
+        storageBucket: "bingo-gen-4a60f.firebasestorage.app",
+        messagingSenderId: "955402372261",
+        appId: "1:955402372261:web:34a4753e53d785ef07394c",
+        measurementId: "G-YJBYBZM83Q"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+
+        // Reference to the bingo game state
+        const bingoRef = database.ref('bingo-game');
+    </script>
+    <script src="bingo.js"></script>
+    <script src="numberboard.js"></script>
+    <script src="confetti.js"></script>
+</body>
+</html>
