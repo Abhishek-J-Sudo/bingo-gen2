@@ -1,5 +1,3 @@
-import { ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
-
 // Number board functionality
 const board = document.getElementById('numberBoard');
 let calledNumbers = [];
