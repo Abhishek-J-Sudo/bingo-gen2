@@ -191,31 +191,60 @@
         </table>
     </div>
     <script type="module">
-        // Import the functions you need from the SDKs you need
+        // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-analytics.js";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
+        import { getDatabase, ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
 
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        const firebaseConfig = {
-        apiKey: "AIzaSyAfMv6xDycWfuF2IYWnuKiDoGxrXsGG41k",
-        authDomain: "bingo-gen-4a60f.firebaseapp.com",
-        projectId: "bingo-gen-4a60f",
-        storageBucket: "bingo-gen-4a60f.firebasestorage.app",
-        messagingSenderId: "955402372261",
-        appId: "1:955402372261:web:34a4753e53d785ef07394c",
-        measurementId: "G-YJBYBZM83Q"
-        };
+        // Firestore setup
+        const firestoreApp = initializeApp({
+            projectId: "bingo-gen-4a60f" // Replace with your actual Firebase project ID
+        });
+        const db = getFirestore(firestoreApp);
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
+        // Firestore document ID (replace with your actual document ID)
+        const configDocId = "kKkkVGaT0eFI0yDz3NVO"; 
 
-        // Reference to the bingo game state
-        const bingoRef = database.ref('bingo-game');
+        async function fetchFirebaseConfig() {
+            const configRef = doc(db, "config", configDocId);
+            const docSnap = await getDoc(configRef);
+
+            if (docSnap.exists()) {
+                return docSnap.data(); // Return the Firebase config object
+            } else {
+                console.error("No Firebase config found in Firestore!");
+                return null;
+            }
+        }
+
+        async function initializeFirebase() {
+            const firebaseConfig = await fetchFirebaseConfig();
+
+            if (firebaseConfig) {
+                // Initialize Firebase with fetched config
+                const app = initializeApp(firebaseConfig);
+                const analytics = getAnalytics(app);
+                const database = getDatabase(app);
+                
+                // Create reference to the bingo game state
+                const bingoRef = ref(database, 'bingo-game');
+
+                // Make Firebase references available globally
+                window.bingoRef = bingoRef;
+                window.database = database;
+                window.push = push;
+                window.onChildAdded = onChildAdded;
+                window.remove = remove;
+
+                console.log("Firebase Initialized Successfully!");
+            }
+        }
+
+        // Call initialization function
+        initializeFirebase();
     </script>
+
     <script src="bingo.js"></script>
     <script src="numberboard.js"></script>
     <script src="confetti.js"></script>
