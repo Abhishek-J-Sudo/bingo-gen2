@@ -41,7 +41,7 @@ function generateBingoCard() {
 
     // Reset called numbers and list when generating new card
     calledNumbers = [];
-    // updateCalledNumbersList();
+    //updateCalledNumbersList();
 }
 
 function generateUniqueNumbers(min, max, count) {

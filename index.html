@@ -189,62 +189,114 @@
                 <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
             </tr>
         </table>
+        <button id="reset" style="width: 40px!important; margin: 0px!important; padding: 0px!important; min-height: 2rem!important;" class="button-6">R<br>e<br>s<br>e<br>t</button>
     </div>
     <script type="module">
         // Import Firebase SDKs
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-analytics.js";
         import { getDatabase, ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
 
-        // Firestore setup
-        const firestoreApp = initializeApp({
-            projectId: "bingo-gen-4a60f" // Replace with your actual Firebase project ID
-        });
-        const db = getFirestore(firestoreApp);
-
-        // Firestore document ID (replace with your actual document ID)
-        const configDocId = "kKkkVGaT0eFI0yDz3NVO"; 
+        const configDocId = "kKkkVGaT0eFI0yDz3NVO"; // Replace with your Firestore document ID
 
         async function fetchFirebaseConfig() {
-            const configRef = doc(db, "config", configDocId);
-            const docSnap = await getDoc(configRef);
+            try {
+                const firestoreApp = getApps().length ? getApp() : initializeApp({ projectId: "bingo-gen-4a60f" });
+                const db = getFirestore(firestoreApp);
 
-            if (docSnap.exists()) {
-                return docSnap.data(); // Return the Firebase config object
-            } else {
-                console.error("No Firebase config found in Firestore!");
-                return null;
+                const configRef = doc(db, "config", configDocId);
+                const docSnap = await getDoc(configRef);
+
+                if (docSnap.exists()) {
+                    const configData = docSnap.data();
+                    
+                    // Extensive logging and verification
+                    //console.log("Raw Config Data:", configData);
+                    //console.log("Config Data Type:", typeof configData);
+                    //console.log("Config Keys:", Object.keys(configData));
+                    
+                    // Explicit type checking and conversion
+                    const config = {
+                        apiKey: String(configData.apiKey),
+                        authDomain: String(configData.authDomain),
+                        projectId: String(configData.projectId),
+                        storageBucket: String(configData.storageBucket),
+                        messagingSenderId: String(configData.messagingSenderId),
+                        appId: String(configData.appId)
+                    };
+
+                   // console.log("Processed Config:", config);
+                    //console.log("Config JSON:", JSON.stringify(config));
+
+                    return config;
+                } else {
+                    throw new Error(`No Firebase config document found with ID: ${configDocId}`);
+                }
+            } catch (error) {
+                console.error("Detailed Config Fetch Error:", error);
+                throw error;
             }
         }
 
         async function initializeFirebase() {
-            const firebaseConfig = await fetchFirebaseConfig();
+            try {
+                // Attempt to delete all existing apps
+                const existingApps = getApps();
+                console.log("Existing Apps:", existingApps);
 
-            if (firebaseConfig) {
-                // Initialize Firebase with fetched config
-                const app = initializeApp(firebaseConfig);
+                for (let app of existingApps) {
+                    try {
+                        await deleteApp(app);
+                        console.log("Deleted app:", app.name);
+                    } catch (deleteError) {
+                        console.error("Error deleting app:", deleteError);
+                    }
+                }
+
+                // Fetch configuration
+                const firebaseConfig = await fetchFirebaseConfig();
+                console.log("Initializing with config:", firebaseConfig);
+
+                // Initialize a brand new app
+                const app = initializeApp(firebaseConfig, `bingo-app-${Date.now()}`);
+                
                 const analytics = getAnalytics(app);
                 const database = getDatabase(app);
-                
-                // Create reference to the bingo game state
                 const bingoRef = ref(database, 'bingo-game');
 
-                // Make Firebase references available globally
                 window.bingoRef = bingoRef;
                 window.database = database;
                 window.push = push;
+                window.ref = ref;
                 window.onChildAdded = onChildAdded;
                 window.remove = remove;
 
-                console.log("Firebase Initialized Successfully!");
+                document.dispatchEvent(new Event("firebaseReady"));
+
+            } catch (error) {
+                console.error("Detailed Firebase Initialization Error:", error);
+                alert(`Firebase Initialization Failed: ${JSON.stringify(error)}`);
             }
         }
 
-        // Call initialization function
+        // Explicitly reset and reinitialize
+        function resetFirebaseInitialization() {
+            // Remove any existing Firebase scripts
+            const scripts = document.querySelectorAll('script[src*="firebase"]');
+            scripts.forEach(script => script.remove());
+
+            // Clear any existing Firebase configuration
+            window.firebase = null;
+            
+            // Reinitialize
+            initializeFirebase();
+        }
+
+        // Call initialization
         initializeFirebase();
     </script>
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="bingo.js"></script>
     <script src="numberboard.js"></script>
     <script src="confetti.js"></script>
