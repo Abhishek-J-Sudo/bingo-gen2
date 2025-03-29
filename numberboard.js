@@ -76,7 +76,9 @@ document.addEventListener("firebaseReady", function () {
     }
 
     // Add event listener for button click
-    document.getElementById("unlock").addEventListener("click", window.unlockInput);
+    document.getElementById("unlock").addEventListener("click", function(event){
+        window.unlockInput();
+    });
 
     // Add event listener for pressing Enter inside the input field
     document.getElementById("lockKey").addEventListener("keypress", function(event) {
