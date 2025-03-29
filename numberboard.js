@@ -39,7 +39,7 @@ document.addEventListener("firebaseReady", function () {
         const cell = event.target.closest('td');
         
         // Ignore clicks on already called numbers or outside of table cells
-        if (!cell || cell.classList.contains('disabled') || cell.textContent.trim() === '') return;
+        if (!cell || cell.textContent.trim() === '') return;
 
         const number = parseInt(cell.textContent);
         
@@ -72,9 +72,20 @@ document.addEventListener("firebaseReady", function () {
 
         // Update the called numbers list and bingo card
         updateCalledNumbersList();
-        highlightNumberOnCard(number);
+        //highlightNumberOnCard(number);
     }
 
+    // Add event listener for button click
+    document.getElementById("unlock").addEventListener("click", window.unlockInput);
+
+    // Add event listener for pressing Enter inside the input field
+    document.getElementById("lockKey").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") { 
+            event.preventDefault(); // Prevent form submission if inside a form
+            window.unlockInput();  // Call the function
+        }
+    });
+    
     window.unlockInput = function() {
         const lockKeyInput = document.getElementById('lockKey');
         const numberBoard = document.getElementById('numberBoard');
@@ -93,6 +104,8 @@ document.addEventListener("firebaseReady", function () {
             alert('Incorrect key. Access denied.');
         }
     }
+
+
 
     // Add a style to visually indicate the board's unlock status
     const style = document.createElement('style');
@@ -143,23 +156,29 @@ document.addEventListener("firebaseReady", function () {
             cell.classList.remove('called', 'disabled');
         });
 
+        // Reset Bingo board
+        document.querySelectorAll('#bingoTable td').forEach(cell => {
+            cell.classList.remove('marked');
+        });
+
         // Clear Firebase called numbers
         remove(ref(database, 'bingo-game/calledNumbers'));
+        alert('Bingo caller has reset the game, please reload or reset bingo board')
     }
 
     // Modify generateBingoCard to reset called numbers
-    function generateBingoCard() {
-        // Reset called numbers and list when generating new card
-        calledNumbers = [];
-        updateCalledNumbersList();
+    // function generateBingoCard() {
+    //     // Reset called numbers and list when generating new card
+    //     calledNumbers = [];
+    //     updateCalledNumbersList();
 
-        // Reset number board
-        document.querySelectorAll('#numberBoard td').forEach(cell => {
-            cell.classList.remove('called', 'disabled');
-        });
-        isBoardUnlocked = false;
-        board.classList.remove('unlocked');
+    //     // Reset number board
+    //     document.querySelectorAll('#numberBoard td').forEach(cell => {
+    //         cell.classList.remove('called', 'disabled');
+    //     });
+    //     isBoardUnlocked = false;
+    //     board.classList.remove('unlocked');
 
-        remove(ref(database, 'bingo-game/calledNumbers'));
-    }
+    //     remove(ref(database, 'bingo-game/calledNumbers'));
+    // }
 });
