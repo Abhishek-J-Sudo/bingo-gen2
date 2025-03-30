@@ -57,13 +57,13 @@
             flex: 1 1 calc(20% - 10px); /* Makes sure 5 items fit in one row */
             max-width: calc(20% - 10px); /* Limits max width to ensure 5 per row */
             text-align: center;
+            max-height: fit-content;
         }
 
         .game-container {
         display: flex;
         align-items: flex-start;
-        margin-top: 20px;
-        margin-bottom: 20px;
+        margin: 5px 0px;
         padding-bottom: 20px;
         border-bottom: 1px solid #efefef;
         }
@@ -157,10 +157,46 @@
         .column2{
             margin-left: 20px;
         }
+        /* Add styles for player info and status displays */
+        #playerCount, #gameStatus {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        /* Styles for caller controls */
+        #callerControls {
+            display: none;
+            margin-top: 10px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            flex-direction: row;
+            flex-wrap: wrap;
+            /*width: 355px;*/
+        }
+        .winners-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border: 1px solid #eee;
+            padding: 5px;
+        }
+        .game-locked #bingoTable td {
+            cursor: not-allowed;
+        }
+        .caller-container{
+            display: flex;
+            align-items: flex-start;
+            flex-direction: row;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Bingo Card Generator (Numbers 1-25)</h1>
+    
+    <div id="gameStatus">Game is ready - you can reset your board</div>
+    <div id="playerCount">Players: 0/10</div>
     
     <div class="game-container">
         <table id="bingoTable"></table>
@@ -169,7 +205,7 @@
                 <span style="color: #9c9c9c; padding-bottom: 10px; border-bottom: 1px solid #efefef; margin-bottom: 10px;">Called Numbers</span>
                 <div id="calledNumbersList"></div>
             </div>
-            <button class="button-6">Reset</button>
+            <button id="playerReset" class="button-6">Reset</button>
         </div>
     </div>
     <span>For Bingo caller only</span>
@@ -177,26 +213,37 @@
         <input type="password" id="lockKey" placeholder="Enter Key">
         <button id="unlock" class="button-6" style="width: 100px!important; margin: 0px!important; padding: 0px!important; min-height: 2rem!important;">Unlock</button>
     </div>
-    <div class="lock-section">
-        <table id="numberBoard" style="margin: auto; border-collapse: collapse;">
-            <tr>
-                <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
-            </tr>
-             <tr>
-                <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
-            </tr>
-             <tr>
-                <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
-            </tr>
-        </table>
-        <button id="reset" style="width: 40px!important; margin: 0px!important; padding: 0px!important; min-height: 2rem!important;" class="button-6">R<br>e<br>s<br>e<br>t</button>
+    <div class="caller-container">
+        <!-- Add Caller Controls section -->
+        <div id="callerControls">
+            <button id="startGame" class="button-6" style="width: 120px!important;">Start Game</button>
+            <div>
+                <h3>Winners</h3>
+                <div id="winnersList" class="winners-list">No winners yet</div>
+            </div>
+        </div>
+        <div class="lock-section">
+            <table id="numberBoard" style="margin: auto; border-collapse: collapse;">
+                <tr>
+                    <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
+                </tr>
+                 <tr>
+                    <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
+                </tr>
+                 <tr>
+                    <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
+                </tr>
+            </table>
+        </div>
+        <button id="reset" style="width: 40px!important; margin-top: 10px!important; padding: 0px!important; min-height: 2rem!important;" class="button-6">R<br>e<br>s<br>e<br>t</button>
     </div>
     <script type="module">
         // Import Firebase SDKs
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-analytics.js";
-        import { getDatabase, ref, push, onChildAdded, remove } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
+        import { getDatabase, ref, push, onChildAdded, remove, onValue, set, update, get, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
+        import { deleteApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
 
         const configDocId = "kKkkVGaT0eFI0yDz3NVO"; // Replace with your Firestore document ID
 
@@ -271,6 +318,12 @@
                 window.ref = ref;
                 window.onChildAdded = onChildAdded;
                 window.remove = remove;
+                window.set = set;
+                window.update = update;
+                window.get = get;
+                window.onValue = onValue;
+                window.onDisconnect = onDisconnect;
+                window.serverTimestamp = serverTimestamp;
 
                 document.dispatchEvent(new Event("firebaseReady"));
 

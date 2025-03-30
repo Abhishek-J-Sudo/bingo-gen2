@@ -3,9 +3,18 @@ document.addEventListener("firebaseReady", function () {
 
     // Number board functionality
     const board = document.getElementById('numberBoard');
-    const reset = document.getElementById('reset')
+    const reset = document.getElementById('reset');
+    const startGameBtn = document.getElementById('startGame');
     let calledNumbers = [];
     let isBoardUnlocked = false;
+    let isGameStarted = false;
+
+    // Import additional Firebase functions needed
+    window.set = set;
+    window.update = update;
+    window.get = get;
+    window.onValue = onValue;
+    window.serverTimestamp = serverTimestamp;
 
     // Listen to called numbers from Firebase
     onChildAdded(ref(database, 'bingo-game/calledNumbers'), (snapshot) => {
@@ -24,7 +33,7 @@ document.addEventListener("firebaseReady", function () {
         if (!calledNumbers.includes(number)) {
             calledNumbers.push(number);
             updateCalledNumbersList();
-            highlightNumberOnCard(number);
+            //highlightNumberOnCard(number);
         }
     });
 
@@ -33,6 +42,12 @@ document.addEventListener("firebaseReady", function () {
         // Check if board is unlocked
         if (!isBoardUnlocked) {
             alert('Please unlock the board first by entering the correct key.');
+            return;
+        }
+
+        // Check if game is started
+        if (!isGameStarted) {
+            alert('Please start the game first by clicking the "Start Game" button.');
             return;
         }
 
@@ -57,6 +72,44 @@ document.addEventListener("firebaseReady", function () {
         resetGame();
     });
 
+    // Add start game button event listener
+    if (startGameBtn) {
+        startGameBtn.addEventListener('click', function(event) {
+            // Check if board is unlocked
+            if (!isBoardUnlocked) {
+                alert('Please unlock the board first by entering the correct key.');
+                return;
+            }
+            
+            // Toggle game state
+            isGameStarted = !isGameStarted;
+            
+            // Update UI
+            if (isGameStarted) {
+                startGameBtn.textContent = "Stop Game";
+                startGameBtn.classList.add('game-active');
+                alert("Game started! Player boards are now locked.");
+            } else {
+                startGameBtn.textContent = "Start Game";
+                startGameBtn.classList.remove('game-active');
+                alert("Game stopped! Player boards are now unlocked.");
+            }
+            
+            // Update game status in Firebase
+            updateGameStatus(isGameStarted);
+        });
+    }
+
+    function updateGameStatus(locked) {
+        const statusRef = ref(database, 'bingo-game/status');
+        update(statusRef, {
+            locked: locked,
+            lastUpdated: serverTimestamp()
+        }).catch((error) => {
+            console.error("Error updating game status:", error);
+        });
+    }
+
     function callNumber(number, cell) {
         // Prevent calling the same number twice
         if (calledNumbers.includes(number)) {
@@ -72,7 +125,6 @@ document.addEventListener("firebaseReady", function () {
 
         // Update the called numbers list and bingo card
         updateCalledNumbersList();
-        //highlightNumberOnCard(number);
     }
 
     // Add event listener for button click
@@ -87,7 +139,7 @@ document.addEventListener("firebaseReady", function () {
             window.unlockInput();  // Call the function
         }
     });
-    
+
     window.unlockInput = function() {
         const lockKeyInput = document.getElementById('lockKey');
         const numberBoard = document.getElementById('numberBoard');
@@ -96,18 +148,26 @@ document.addEventListener("firebaseReady", function () {
             isBoardUnlocked = true;
             board.classList.add('unlocked');
             reset.classList.add('unlocked');
+            if (startGameBtn) startGameBtn.classList.add('unlocked');
             numberBoard.style.display = 'table';
+            
+            // Show caller controls
+            document.getElementById('callerControls').style.display = 'flex';
+            
             alert('Number board unlocked successfully!');
         } else {
             isBoardUnlocked = false;
             board.classList.remove('unlocked');
             reset.classList.remove('unlocked');
+            if (startGameBtn) startGameBtn.classList.remove('unlocked');
             lockKeyInput.value = '';
+            
+            // Hide caller controls
+            document.getElementById('callerControls').style.display = 'none';
+            
             alert('Incorrect key. Access denied.');
         }
     }
-
-
 
     // Add a style to visually indicate the board's unlock status
     const style = document.createElement('style');
@@ -135,20 +195,99 @@ document.addEventListener("firebaseReady", function () {
             cursor: pointer;
             background-color: #f0f0f0;
         }
+        #startGame {
+            color: #999;
+            cursor: not-allowed;
+        }
+        #startGame.unlocked {
+            color: #000;
+            cursor: pointer;
+        }
+        #startGame.game-active {
+            background-color: #f44336;
+            color: white;
+        }
+        // #callerControls {
+        //     display: none;
+        //     margin-top: 20px;
+        //     padding: 10px;
+        //     border: 1px solid #ccc;
+        //     background-color: #f9f9f9;
+        // }
+        .player-count {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .winners-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
     `;
     document.head.appendChild(style);
+
+    // Function to track player count
+    function setupPlayerCountListener() {
+        const boardsRef = ref(database, 'bingo-game/boards');
+        onValue(boardsRef, (snapshot) => {
+            let count = 0;
+            if (snapshot.exists()) {
+                count = Object.keys(snapshot.val()).length;
+            }
+            
+            // Update player count in UI
+            const playerCountElement = document.getElementById('playerCount');
+            if (playerCountElement) {
+                playerCountElement.textContent = `Active Players: ${count}/10`;
+                
+                // Highlight if over capacity
+                if (count > 10) {
+                    playerCountElement.style.color = 'red';
+                } else {
+                    playerCountElement.style.color = 'black';
+                }
+            }
+        });
+    }
+
+    // Function to track winners
+    function setupWinnersListener() {
+        const winnersRef = ref(database, 'bingo-game/winners');
+        onValue(winnersRef, (snapshot) => {
+            const winnersListElement = document.getElementById('winnersList');
+            if (winnersListElement) {
+                winnersListElement.innerHTML = '';
+                
+                if (snapshot.exists()) {
+                    const winners = snapshot.val();
+                    Object.entries(winners).forEach(([key, winner]) => {
+                        const winnerItem = document.createElement('div');
+                        const winnerTime = new Date(winner.timestamp).toLocaleTimeString();
+                        winnerItem.textContent = `Winner: Board ${winner.boardId.substring(0, 10)}... at ${winnerTime}`;
+                        winnersListElement.appendChild(winnerItem);
+                    });
+                } else {
+                    winnersListElement.textContent = 'No winners yet';
+                }
+            }
+        });
+    }
 
     // Modify the existing updateCalledNumbersList function to work with the number board
     function updateCalledNumbersList() {
         const list = document.getElementById('calledNumbersList');
         list.innerHTML = calledNumbers
-            .sort((a, b) => a - b)
-            .map(num => `<div>${num},</div>`)
+            .map(num => `<div>${num}</div>`)
             .join('');
     }
 
     // Reset game functionality
     window.resetGame = function() {
+        // Confirm reset
+        if (!confirm("Are you sure you want to reset the game? This will reset all player boards.")) {
+            return;
+        }
+        
         // Clear local called numbers
         calledNumbers = [];
         updateCalledNumbersList();
@@ -163,24 +302,51 @@ document.addEventListener("firebaseReady", function () {
             cell.classList.remove('marked');
         });
 
+        // Update game status with reset timestamp
+        const statusRef = ref(database, 'bingo-game/status');
+        update(statusRef, {
+            locked: false,
+            resetTimestamp: 0,
+            lastUpdated: serverTimestamp()
+        });
+        
+        // Reset game started state
+        isGameStarted = false;
+        if (startGameBtn) {
+            startGameBtn.textContent = "Start Game";
+            startGameBtn.classList.remove('game-active');
+        }
+
         // Clear Firebase called numbers
         remove(ref(database, 'bingo-game/calledNumbers'));
-        alert('Bingo caller has reset the game, please reload or reset bingo board')
+        
+        // Clear winners
+        remove(ref(database, 'bingo-game/winners'));
+        
+        alert('Game has been reset. All players have been notified.');
     }
 
-    // Modify generateBingoCard to reset called numbers
-    // function generateBingoCard() {
-    //     // Reset called numbers and list when generating new card
-    //     calledNumbers = [];
-    //     updateCalledNumbersList();
-
-    //     // Reset number board
-    //     document.querySelectorAll('#numberBoard td').forEach(cell => {
-    //         cell.classList.remove('called', 'disabled');
-    //     });
-    //     isBoardUnlocked = false;
-    //     board.classList.remove('unlocked');
-
-    //     remove(ref(database, 'bingo-game/calledNumbers'));
-    // }
+    // Set up listeners
+    setupPlayerCountListener();
+    setupWinnersListener();
+    
+    // Check if game is already in progress
+    const gameStatusRef = ref(database, 'bingo-game/status');
+    get(gameStatusRef).then((snapshot) => {
+        if (snapshot.exists()) {
+            const status = snapshot.val();
+            isGameStarted = status.locked || false;
+            
+            // Update UI to match current game state
+            if (startGameBtn) {
+                if (isGameStarted) {
+                    startGameBtn.textContent = "Stop Game";
+                    startGameBtn.classList.add('game-active');
+                } else {
+                    startGameBtn.textContent = "Start Game";
+                    startGameBtn.classList.remove('game-active');
+                }
+            }
+        }
+    });
 });
