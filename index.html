@@ -13,21 +13,12 @@
             flex-direction: column;
             /*padding-bottom: 100px;*/
             margin: 0px;
+            background-color: rgb(74 95 112);
+            color: #e0e0e0;
+
         }
         h1,h2,h3{
             margin: 10px;
-        }
-        table { 
-            border-collapse: collapse; 
-            margin: auto; 
-        }
-        td { 
-            width: 50px; 
-            height: 50px; 
-            text-align: center; 
-            font-size: 20px; 
-            border: 1px solid black; 
-            cursor: pointer; 
         }
         .marked { 
             background-color: red; 
@@ -37,12 +28,13 @@
         .called-numbers {
             display: flex;
             flex-direction: column;
-            border: 1px solid #ccc;
+            border: 1px solid #94d3b6;
             padding: 10px;
-            margin: 20px 0px;
+            margin-bottom: 20px;
             max-width: 200px;
             min-width: 200px;
             height: 175px;
+            background-color: #083e401c;
         }
 
         #calledNumbersList {
@@ -61,16 +53,14 @@
         }
 
         .game-container {
-        display: flex;
-        align-items: flex-start;
-        margin: 5px 0px;
-        padding-bottom: 20px;
-        border-bottom: 1px solid #efefef;
+            display: flex;
+            justify-content: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #efefef;
         }
 
         .lock-section {
             display: flex;
-            margin-top: 10px;
             column-gap: 10px;
         }
         #numberInput, #lockKey {
@@ -84,9 +74,9 @@
           background-color: #efefef;
           border: 1px solid rgba(0, 0, 0, 0.1);
           border-radius: .25rem;
-          box-shadow: rgba(0, 0, 0, 0.02) 0 1px 3px 0;
+          box-shadow: rgba(0, 0, 0, 0.05) 0 5px 10px 5px;
           box-sizing: border-box;
-          color: rgba(0, 0, 0, 0.85);
+          color: rgba(255, 255, 255, 0.85);
           cursor: pointer;
           display: inline-flex;
           font-family: system-ui,-apple-system,system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -112,7 +102,7 @@
         .button-6:hover,
         .button-6:focus {
           border-color: rgba(0, 0, 0, 0.15);
-          box-shadow: rgba(0, 0, 0, 0.1) 0 4px 12px;
+          box-shadow: rgba(0, 0, 0, 0.20) 0 4px 12px;
           color: rgba(0, 0, 0, 0.65);
         }
 
@@ -130,7 +120,7 @@
         td {
             width: 50px;
             height: 50px;
-            border: 1px solid #ccc;
+            border: 1px solid #94d3b6;
             text-align: center;
             vertical-align: middle;
             cursor: pointer;
@@ -156,6 +146,7 @@
         }
         .column2{
             margin-left: 20px;
+            text-align: left;
         }
         /* Add styles for player info and status displays */
         #playerCount, #gameStatus {
@@ -165,78 +156,117 @@
         /* Styles for caller controls */
         #callerControls {
             display: none;
-            margin-top: 10px;
-            padding: 15px;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
+            /* padding: 15px;
+            border: 1px solid #94d3b6; */
+            background-color: #275a5e17;
             flex-direction: row;
-            flex-wrap: wrap;
-            /*width: 355px;*/
+            width: 280px;
         }
         .winners-list {
             max-height: 150px;
             overflow-y: auto;
             margin-top: 10px;
-            border: 1px solid #eee;
+            border-top: 1px solid #eee;
             padding: 5px;
+            font-size: 15px;
         }
         .game-locked #bingoTable td {
             cursor: not-allowed;
         }
+        #reset{
+            display: none;
+            align-self: normal;
+        }
+        .main-container{
+            width: 700px;
+            margin: auto;
+            background-color: #7d9db1;
+            box-shadow: 0 0 100px rgb(0 200 255 / 60%);
+        }
+        .player-container{
+            text-align: center;
+        }
         .caller-container{
-            display: flex;
+            /* display: none; */
             align-items: flex-start;
             flex-direction: row;
             gap: 10px;
-            margin-bottom: 20px;
+            margin: 0px 20px 20px 20px;
+            justify-content: center;
+        }
+        .unlock-section{
+            display: flex;
+            flex-direction: column;
+            margin-top: 10px;
+            column-gap: 10px;
+            text-align: center;
+        }
+        #bingoTable{
+            background-color: #f0f0f0;
+            color: #818181;
+        }
+        th{
+            color: #7d9db1;
+            /* color: #e0e0e0; */
+        }
+        .board{
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>Bingo Card Generator (Numbers 1-25)</h1>
-    
-    <div id="gameStatus">Game is ready - you can reset your board</div>
-    <div id="playerCount">Players: 0/10</div>
-    
-    <div class="game-container">
-        <table id="bingoTable"></table>
-        <div class="column2">
-            <div class="called-numbers">
-                <span style="color: #9c9c9c; padding-bottom: 10px; border-bottom: 1px solid #efefef; margin-bottom: 10px;">Called Numbers</span>
-                <div id="calledNumbersList"></div>
-            </div>
-            <button id="playerReset" class="button-6">Reset</button>
-        </div>
-    </div>
-    <span>For Bingo caller only</span>
-    <div class="lock-section">
-        <input type="password" id="lockKey" placeholder="Enter Key">
-        <button id="unlock" class="button-6" style="width: 100px!important; margin: 0px!important; padding: 0px!important; min-height: 2rem!important;">Unlock</button>
-    </div>
-    <div class="caller-container">
-        <!-- Add Caller Controls section -->
-        <div id="callerControls">
-            <button id="startGame" class="button-6" style="width: 120px!important;">Start Game</button>
-            <div>
-                <h3>Winners</h3>
-                <div id="winnersList" class="winners-list">No winners yet</div>
+    <div class="main-container">
+        <div class="player-container">
+            <h1 style="color: #fff; margin-bottom: 0px;">🎉 Bingo Madness 🎉</h1>
+            <h4 style="color: #fff; margin: 0px;">🎯 Mark. Match. Win! 🎯</h4>
+            <div id="gameStatus">Game is ready - you can reset your board</div>
+            <div id="playerCount">Players: 0/10</div>
+            
+            <div class="game-container">
+                <table id="bingoTable"></table>
+                <div class="column2">
+                    <div id="playerName" style="margin: 10px 0px;">NAME</div>
+                    <div class="called-numbers">
+                        <span style="color: #eeeeee; padding-bottom: 10px; border-bottom: 1px solid #efefef; margin-bottom: 10px;">Called Numbers</span>
+                        <div id="calledNumbersList"></div>
+                    </div>
+                    <button id="playerReset" class="button-6" style="background-color: #67dde3ba;">Reset</button>
+                </div>
             </div>
         </div>
-        <div class="lock-section">
-            <table id="numberBoard" style="margin: auto; border-collapse: collapse;">
-                <tr>
-                    <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
-                </tr>
-                 <tr>
-                    <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
-                </tr>
-                 <tr>
-                    <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
-                </tr>
-            </table>
+        <div class="unlock-section">
+            <span style="color: #424c69;">For Bingo caller only</span>
+            <div class="lock-section" style="margin: auto; padding: 10px 0px">
+                <input type="password" id="lockKey" placeholder="Enter Key">
+                <button id="unlock" class="button-6" style="width: 100px!important; margin: 0px!important; padding: 0px!important; min-height: 2rem!important; background-color: #424c69; color: #e0e0e0;">Unlock</button>
+            </div>
+        </div>      
+        <div class="caller-container">
+            <!-- Add Caller Controls section -->
+            <div id="callerControls">
+                <button id="startGame" class="button-6" style="width: 120px!important; margin-right: 10px; margin-top: 0px!important; box-shadow: 0 0 100px rgb(0 200 255 / 60%);">Start Game</button>
+                <div>
+                    <h3>Winners</h3>
+                    <div id="winnersList" class="winners-list">No winners yet</div>
+                </div>
+            </div>
+            <div class="board">
+                <table id="numberBoard" style="margin: auto;">
+                    <tr>
+                        <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
+                    </tr>
+                     <tr>
+                        <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
+                    </tr>
+                     <tr>
+                        <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
+                    </tr>
+                </table>
+            </div>
+            <button id="reset" style="background-color: #ff0b4cb8; color: #e0e0e0; width: 40px!important; margin: 0px!important; min-height: 2rem!important;" class="button-6">Reset</button>
         </div>
-        <button id="reset" style="width: 40px!important; margin-top: 10px!important; padding: 0px!important; min-height: 2rem!important;" class="button-6">R<br>e<br>s<br>e<br>t</button>
     </div>
+    
     <script type="module">
         // Import Firebase SDKs
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
@@ -348,6 +378,7 @@
 
         // Call initialization
         initializeFirebase();
+
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="bingo.js"></script>

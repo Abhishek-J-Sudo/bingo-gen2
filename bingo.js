@@ -3,17 +3,32 @@ let boardId = null; // To track the current player's board ID
 let isGameLocked = false; // Track if the game is locked
 let playerCount = 0; // Track number of active players
 let calledNumbers = []; // Define calledNumbers at the global scope
+let sessionId = null; // Unique session ID for this browser instance
+let isResetting = false; // Flag to prevent duplicate board creation during reset
+const sessionAssignedNames = {}; // To track session details for names
+
+// Generate a unique session ID for this browser instance
+function generateSessionId() {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
 // Wait for Firebase to be ready before attaching event listeners
 document.addEventListener("firebaseReady", function() {
-    console.log("🔥 Firebase is ready for player board integration!");
+    console.log("🔥 Firebase is ready for Bingo integration!");
+    
+    // Generate a unique session ID for this browser instance if not already set
+    if (!sessionId) {
+        sessionId = generateSessionId();
+        console.log("Generated session ID:", sessionId);
+        localStorage.setItem('bingoSessionId', sessionId);
+    }
     
     // Now that Firebase is ready, attach the event listener for the button
-    document.querySelector('.button-6').addEventListener('click', generateBingoCard);
+    document.querySelector('#playerReset').addEventListener('click', generateBingoCard);
     
     // Make sure global references to Firebase functions are available
     const { ref, set, update, get, onValue, onDisconnect, serverTimestamp } = window;
-    
+
     // Set up game status listener
     setupGameStatusListener();
     
@@ -54,6 +69,12 @@ function generateBingoCard() {
         return;
     }
     
+    // Check if we're in the middle of a reset operation
+    if (isResetting) {
+        console.log("Reset in progress, skipping duplicate board generation");
+        return;
+    }
+    
     const table = document.getElementById("bingoTable");
     table.innerHTML = "";
     
@@ -73,8 +94,6 @@ function generateBingoCard() {
             const cell = row.insertCell();
             cell.innerText = numbers[numberIndex];
             numberIndex++;
-            
-            // Remove the inline click handler - we'll use the event listener approach
         });
     }
 
@@ -112,38 +131,81 @@ function generateUniqueNumbers(min, max, count) {
 function checkBingo() {
     const table = document.getElementById("bingoTable");
     let bingo = false;
-    
-    // Check rows
-    for (let i = 1; i < 6; i++) {
-        if ([...table.rows[i].cells].every(cell => cell.classList.contains("marked"))) {
-            bingo = true;
-        }
-    }
-    
-    // Check columns
-    for (let j = 0; j < 5; j++) {
-        if ([...Array(5).keys()].every(i => table.rows[i + 1].cells[j].classList.contains("marked"))) {
-            bingo = true;
-        }
-    }
-    
-    // Check diagonals
-    if ([...Array(5).keys()].every(i => table.rows[i + 1].cells[i].classList.contains("marked")) ||
-        [...Array(5).keys()].every(i => table.rows[i + 1].cells[4 - i].classList.contains("marked"))) {
-        bingo = true;
-    }
-    
-    if (bingo) {
-        if (typeof launchConfetti === 'function') {
-            launchConfetti();
+
+    // First, check if all marked cells contain numbers that have been called
+    const markedCells = document.querySelectorAll('#bingoTable td.marked');
+    const allMarkedNumbersAreCalled = Array.from(markedCells).every(cell => {
+        const number = parseInt(cell.textContent);
+        return calledNumbers.includes(number);
+    });
+
+    // Only proceed with bingo check if all marked numbers have been called
+    if (allMarkedNumbersAreCalled){
+        // Check rows
+        for (let i = 1; i < 6; i++) {
+            if ([...table.rows[i].cells].every(cell => cell.classList.contains("marked"))) {
+                bingo = true;
+            }
         }
         
-        // Notify bingo in Firebase if game is locked
-        if (isGameLocked && boardId) {
-            push(ref(database, 'bingo-game/winners'), {
-                boardId: boardId,
-                timestamp: Date.now()
-            });
+        // Check columns
+        for (let j = 0; j < 5; j++) {
+            if ([...Array(5).keys()].every(i => table.rows[i + 1].cells[j].classList.contains("marked"))) {
+                bingo = true;
+            }
+        }
+        
+        // Check diagonals
+        if ([...Array(5).keys()].every(i => table.rows[i + 1].cells[i].classList.contains("marked")) ||
+            [...Array(5).keys()].every(i => table.rows[i + 1].cells[4 - i].classList.contains("marked"))) {
+            bingo = true;
+        }
+    
+        if (bingo) {
+            if (typeof launchConfetti === 'function') {
+                launchConfetti();
+            }
+            
+            // Notify bingo in Firebase if game is locked
+            if (isGameLocked && boardId) {
+                // Get the player's name from Firebase first
+                get(ref(database, `bingo-game/boards/${boardId}`)).then((snapshot) => {
+                    if (snapshot.exists()) {
+                        const boardData = snapshot.val();
+                        const playerName = boardData.playerName || "Unknown Player";
+                        
+                        // Push both boardId, playerName and timestamp to winners
+                        push(ref(database, 'bingo-game/winners'), {
+                            boardId: boardId,
+                            playerName: playerName,
+                            timestamp: Date.now()
+                        });
+                    } else {
+                        // Fallback if board data not found
+                        push(ref(database, 'bingo-game/winners'), {
+                            boardId: boardId,
+                            playerName: "Unknown Player",
+                            timestamp: Date.now()
+                        });
+                    }
+                }).catch((error) => {
+                    console.error("Error getting player name:", error);
+                    // Fallback in case of error
+                    push(ref(database, 'bingo-game/winners'), {
+                        boardId: boardId,
+                        timestamp: Date.now()
+                    });
+                });
+            }
+        }
+    } else if (markedCells.length > 0) {
+        // If there are marked cells but not all have been called, notify the player
+        const unmarkedNumbers = Array.from(markedCells)
+            .filter(cell => !calledNumbers.includes(parseInt(cell.textContent)))
+            .map(cell => cell.textContent);
+        
+        if (unmarkedNumbers.length > 0) {
+            alert(`Number not called`);
         }
     }
 }
@@ -160,39 +222,120 @@ function saveBoardToFirebase(numbers) {
     if (boardId) {
         remove(ref(database, `bingo-game/boards/${boardId}`));
     }
+
+    const playerNames = ["Excel Ninja", "Deadline Daku", "Chill Operator", 
+        "Jugaadu Analyst", "Masti Manager", "Gentle Ghoster", "PowerPoint Pandit", 
+        "Reminder Raja",  "Thanda TL",  "Approval Baba"];
     
-    // Generate unique ID based on timestamp and random number
-    const uniqueId = `board_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    boardId = uniqueId;
-    
-    // Save the board to Firebase
-    const boardRef = window.ref(database, `bingo-game/boards/${uniqueId}`);
-    const boardData = {
-        numbers: numbers,
-        markedNumbers: [],
-        createdAt: Date.now(),
-        lastActive: Date.now()
-    };
-    
-    set(boardRef, boardData)
-        .then(() => {
-            console.log("Board saved successfully with ID:", uniqueId);
+    function getRandomName(sessionId) {
+        // Check if this session already has a name
+        if (sessionId in sessionAssignedNames) {
+            // Return the previously assigned name wrapped in a Promise
+            return Promise.resolve(sessionAssignedNames[sessionId]);
+        }
+        
+        // Get current name assignments from Firebase
+        return get(ref(database, 'bingo-game/assignedNames')).then((snapshot) => {
+            let assignedNames = {};
+            if (snapshot.exists()) {
+                assignedNames = snapshot.val();
+            }
             
-            // Store board ID in local storage
-            localStorage.setItem('bingoboardId', uniqueId);
+            // Get all assigned names to avoid duplicates
+            const takenNames = Object.values(assignedNames);
             
-            // Set up presence system
-            const connectedRef = ref(database, '.info/connected');
-            onValue(connectedRef, (snap) => {
-                if (snap.val() === true) {
-                    // When we disconnect, remove this device
-                    onDisconnect(ref(database, `bingo-game/boards/${uniqueId}`)).remove();
-                }
-            });
-        })
-        .catch((error) => {
-            console.error("Error saving board:", error);
+            // Filter out already assigned names
+            const availableNames = playerNames.filter(name => !takenNames.includes(name));
+            
+            // No name assigned yet, pick a random one from available names
+            if (availableNames.length > 0) {
+                const randomIndex = Math.floor(Math.random() * availableNames.length);
+                const newName = availableNames[randomIndex];
+                
+                // Store the name for this session both locally and in Firebase
+                sessionAssignedNames[sessionId] = newName;
+                
+                // Update Firebase with the new name assignment
+                update(ref(database, 'bingo-game/assignedNames'), {
+                    [sessionId]: newName
+                });
+                
+                return newName;
+            } else {
+                // Fallback when no more names are available
+                const fallbackName = "Player_" + Math.floor(Math.random() * 1000);
+                sessionAssignedNames[sessionId] = fallbackName;
+                
+                // Update Firebase with the fallback name
+                update(ref(database, 'bingo-game/assignedNames'), {
+                    [sessionId]: fallbackName
+                });
+                
+                return fallbackName;
+            }
+        }).catch(error => {
+            console.error("Error getting assigned names:", error);
+            // Fallback in case of error
+            const fallbackName = "Player_" + Math.floor(Math.random() * 1000);
+            return fallbackName;
         });
+    }
+
+    // Generate unique ID including session ID
+    const uniqueId = `board_${sessionId}_${Date.now()}`;
+    boardId = uniqueId;
+
+    // Get a name and then save board
+    getRandomName(sessionId).then(assignedName => {
+        // Save the board to Firebase with the assigned name
+        const boardRef = window.ref(database, `bingo-game/boards/${uniqueId}`);
+        const boardData = {
+            numbers: numbers,
+            markedNumbers: [],
+            createdAt: Date.now(),
+            lastActive: Date.now(),
+            sessionId: sessionId,
+            playerName: assignedName
+        };
+    
+        const pName = document.getElementById('playerName');
+        onValue(boardRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const boardData = snapshot.val();
+                if (boardData.playerName) {
+                    pName.textContent = `Name: ${boardData.playerName}`;
+                    console.log(`Session ${sessionId} assigned to ${boardData.playerName}`);
+                }
+            } else {
+                console.log(`No board data found for session ${sessionId}`);
+            }
+        }, (error) => {
+            console.error("Error fetching board data:", error);
+        });
+        
+        set(boardRef, boardData)
+            .then(() => {
+                console.log("Board saved successfully with ID:", uniqueId);
+                
+                // Store board ID in local storage
+                localStorage.setItem('bingoboardId', uniqueId);
+                
+                // Set up presence system
+                const connectedRef = ref(database, '.info/connected');
+                onValue(connectedRef, (snap) => {
+                    if (snap.val() === true) {
+                        // When we disconnect, remove this device
+                        onDisconnect(ref(database, `bingo-game/boards/${uniqueId}`)).remove();
+                        
+                        // Also remove the name assignment on disconnect
+                        onDisconnect(ref(database, `bingo-game/assignedNames/${sessionId}`)).remove();
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error("Error saving board:", error);
+            });
+    });
 }
 
 function updateBoardInFirebase(boardId, markedNumbers) {
@@ -226,8 +369,17 @@ function updatePlayerCountDisplay() {
     // Listen for changes to the boards
     onValue(boardsRef, (snapshot) => {
         if (snapshot.exists()) {
+            // Filter out duplicates by sessionId
             const boards = snapshot.val();
-            playerCount = Object.keys(boards).length;
+            const uniqueSessions = new Set();
+            
+            Object.values(boards).forEach(board => {
+                if (board.sessionId) {
+                    uniqueSessions.add(board.sessionId);
+                }
+            });
+            
+            playerCount = uniqueSessions.size;
             
             // Update the player count in the UI
             const playerCountElement = document.getElementById('playerCount');
@@ -266,7 +418,7 @@ function setupGameStatusListener() {
             isGameLocked = status.locked;
             
             // Update UI based on game status
-            const resetButton = document.querySelector('.button-6');
+            const resetButton = document.getElementById('reset');
             const playerReset = document.getElementById('playerReset');
             
             if (isGameLocked) {
@@ -289,17 +441,56 @@ function setupGameStatusListener() {
                 const statusElement = document.getElementById('gameStatus');
                 if (statusElement) {
                     statusElement.textContent = "Game is ready - you can modify your board";
-                    statusElement.style.color = "green";
+                    statusElement.style.color = "#94ee84";
                 }
             }
             
             // If we receive a reset notification, alert the user
             if (status.resetTimestamp && status.resetTimestamp > (window.lastResetTime || 0)) {
                 window.lastResetTime = status.resetTimestamp;
-                alert("The bingo caller has reset the game. Please refresh your board!");
                 
-                // Auto-generate a new board
-                generateBingoCard();
+                // Set the reset flag to prevent duplicate board creation
+                isResetting = true;
+                
+                // IMPORTANT: Remove the board ID from Firebase BEFORE showing the alert
+                if (boardId) {
+                    remove(ref(database, `bingo-game/boards/${boardId}`))
+                    .then(() => {
+                        // Clear the board ID from local storage
+                        localStorage.removeItem('bingoboardId');
+                        boardId = null;
+                        
+                        // Now show the alert
+                        alert("The bingo caller has reset the game. Please reset your board!");
+                        
+                        // After alert is dismissed, generate a new board
+                        generateBingoCard();
+                        
+                        // Reset the reset flag after board generation
+                        isResetting = false;
+                    })
+                    .catch(error => {
+                        console.error("Error removing board:", error);
+                        alert("The bingo caller has reset the game. Please reset your board!");
+                        generateBingoCard();
+                        
+                        // Reset the reset flag after board generation
+                        isResetting = false;
+                    });
+                } else {
+                    alert("The bingo caller has reset the game. Please reset your board!");
+                    generateBingoCard();
+                    
+                    // Reset the reset flag after board generation
+                    isResetting = false;
+                }
+                
+                // Reset the timestamp in the database
+                update(gameStatusRef, {
+                    resetTimestamp: 0
+                }).catch(error => {
+                    console.error("Error resetting timestamp:", error);
+                });
             }
         }
     });
@@ -313,6 +504,17 @@ function loadSavedBoard() {
         return;
     }
     
+    // Check if we have a session ID in local storage
+    const savedSessionId = localStorage.getItem('bingoSessionId');
+    if (savedSessionId) {
+        sessionId = savedSessionId;
+        console.log("Loaded saved session ID:", sessionId);
+    } else {
+        sessionId = generateSessionId();
+        localStorage.setItem('bingoSessionId', sessionId);
+        console.log("Generated new session ID:", sessionId);
+    }
+    
     const savedBoardId = localStorage.getItem('bingoboardId');
     if (savedBoardId) {
         const boardRef = ref(database, `bingo-game/boards/${savedBoardId}`);
@@ -323,10 +525,19 @@ function loadSavedBoard() {
                 
                 // Recreate the board with the saved numbers
                 recreateBoardFromSaved(boardData.numbers, boardData.markedNumbers || []);
-                
                 console.log("Loaded saved board:", savedBoardId);
+                
+                // Update the session ID if it's an old board
+                if (!boardData.sessionId) {
+                    update(boardRef, {
+                        sessionId: sessionId
+                    }).catch(error => {
+                        console.error("Error updating session ID:", error);
+                    });
+                }
             } else {
                 // Saved board no longer exists, create a new one
+                console.log("Saved board not found in Firebase, generating new board");
                 generateBingoCard();
             }
         }).catch((error) => {
@@ -335,6 +546,7 @@ function loadSavedBoard() {
         });
     } else {
         // No saved board, create a new one
+        console.log("No saved board found in local storage, generating new board");
         generateBingoCard();
     }
 }
@@ -364,7 +576,6 @@ function recreateBoardFromSaved(numbers, markedNumbers) {
             }
             
             numberIndex++;
-            // Remove the inline click handler here too
         });
     }
     
@@ -391,14 +602,13 @@ function setupCalledNumbersListener() {
             numbers.forEach(number => {
                 if (!calledNumbers.includes(number)) {
                     calledNumbers.push(number);
-                    // highlightNumberOnCard(number);
                 }
             });
             
             // Update the called numbers list
             updateCalledNumbersList();
         }
-        else{            
+        else {            
             // Clear previously called numbers
             calledNumbers = [];
             document.getElementById('calledNumbersList').innerHTML = '';

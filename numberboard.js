@@ -1,5 +1,5 @@
 document.addEventListener("firebaseReady", function () {
-    console.log("🔥 Firebase is ready. You can now use onChildAdded!");
+    console.log("🔥 Firebase is ready. You can now use NumberBoard!");
 
     // Number board functionality
     const board = document.getElementById('numberBoard');
@@ -151,8 +151,11 @@ document.addEventListener("firebaseReady", function () {
             if (startGameBtn) startGameBtn.classList.add('unlocked');
             numberBoard.style.display = 'table';
             
-            // Show caller controls
+            // Make the caller controls visible
+            document.querySelector('.caller-container').style.display = 'flex';
             document.getElementById('callerControls').style.display = 'flex';
+            document.querySelector('.board').style.display = 'block';
+            document.getElementById('reset').style.display = 'flex';
             
             alert('Number board unlocked successfully!');
         } else {
@@ -164,6 +167,8 @@ document.addEventListener("firebaseReady", function () {
             
             // Hide caller controls
             document.getElementById('callerControls').style.display = 'none';
+            document.querySelector('.board').style.display = 'none'; 
+            document.getElementById('reset').style.display = 'none';
             
             alert('Incorrect key. Access denied.');
         }
@@ -179,21 +184,18 @@ document.addEventListener("firebaseReady", function () {
         }
         #numberBoard td.disabled{
             background-color: #fff;
-            color: #fff;
-            cursor: not-allowed;
-        }
-        #reset {
-            color: #999;
+            color: red;
+            text-decoration: line-through;
             cursor: not-allowed;
         }
         #numberBoard:not(.unlocked) td {
             cursor: not-allowed;
-            background-color: #fff;
-            color: #fff;
+            background-color: #7d9db1;
+            color: #7d9db1;
         }
         #numberBoard.unlocked td {
             cursor: pointer;
-            background-color: #f0f0f0;
+            background-color: #eaf8f9;
         }
         #startGame {
             color: #999;
@@ -244,7 +246,7 @@ document.addEventListener("firebaseReady", function () {
                 if (count > 10) {
                     playerCountElement.style.color = 'red';
                 } else {
-                    playerCountElement.style.color = 'black';
+                    playerCountElement.style.color = '#ddffe0';
                 }
             }
         });
@@ -263,7 +265,7 @@ document.addEventListener("firebaseReady", function () {
                     Object.entries(winners).forEach(([key, winner]) => {
                         const winnerItem = document.createElement('div');
                         const winnerTime = new Date(winner.timestamp).toLocaleTimeString();
-                        winnerItem.textContent = `Winner: Board ${winner.boardId.substring(0, 10)}... at ${winnerTime}`;
+                        winnerItem.textContent = `Winner: ${winner.playerName || winner.boardId.substring(0, 10)}... at ${winnerTime}`;
                         winnersListElement.appendChild(winnerItem);
                     });
                 } else {
@@ -306,7 +308,7 @@ document.addEventListener("firebaseReady", function () {
         const statusRef = ref(database, 'bingo-game/status');
         update(statusRef, {
             locked: false,
-            resetTimestamp: 0,
+            resetTimestamp: Date.now(),
             lastUpdated: serverTimestamp()
         });
         
@@ -322,6 +324,9 @@ document.addEventListener("firebaseReady", function () {
         
         // Clear winners
         remove(ref(database, 'bingo-game/winners'));
+
+        //Clear Boards
+        remove(ref(database, 'bingo-game/boards'))
         
         alert('Game has been reset. All players have been notified.');
     }
