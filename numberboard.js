@@ -1,31 +1,54 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const board = document.getElementById("numberBoard");
-    const reset = document.getElementById("reset");
+    const board       = document.getElementById("numberBoard");
+    const resetBtn    = document.getElementById("reset");
     const startGameBtn = document.getElementById("startGame");
-    const unlockButton = document.getElementById("unlock");
     const lockKeyInput = document.getElementById("lockKey");
+    // Game-view unlock button (separate from lobby #unlock)
+    const unlockGameBtn = document.getElementById("unlockGame");
+
     let isBoardUnlocked = false;
 
     function getState() {
         return window.BingoApp ? window.BingoApp.state : {};
     }
 
+    // ─── Visibility ────────────────────────────────────────
+
     function setCallerControlsVisible(visible) {
-        const callerControls = document.getElementById("callerControls");
-        const boardWrapper = document.querySelector(".board");
+        const unlockStrip = document.getElementById("unlockStrip");
+        const callerInner = document.querySelector(".caller-inner");
 
-        if (callerControls) {
-            callerControls.style.display = visible ? "flex" : "none";
-        }
-
-        if (boardWrapper) {
-            boardWrapper.style.display = visible ? "block" : "none";
-        }
-
-        if (reset) {
-            reset.style.display = visible ? "flex" : "none";
-        }
+        if (unlockStrip) unlockStrip.style.display = visible ? "none" : "flex";
+        if (callerInner) callerInner.style.display  = visible ? "grid" : "none";
     }
+
+    // ─── Unlock ────────────────────────────────────────────
+
+    function unlockWithKey(key) {
+        const appState = getState();
+        appState.callerKey = key;
+        sessionStorage.setItem("bingoCallerKey", key);
+        isBoardUnlocked = true;
+        setCallerControlsVisible(true);
+    }
+
+    async function unlockInput() {
+        const callerKey = lockKeyInput ? lockKeyInput.value.trim() : "";
+        const appState  = getState();
+
+        if (!appState.roomCode) {
+            alert("Join a room first.");
+            return;
+        }
+        if (!callerKey) {
+            alert("Enter your caller key.");
+            return;
+        }
+
+        unlockWithKey(callerKey);
+    }
+
+    // ─── Number board ──────────────────────────────────────
 
     function clearNumberBoard() {
         document.querySelectorAll("#numberBoard td").forEach((cell) => {
@@ -35,26 +58,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function markCalledNumbers(numbers) {
         clearNumberBoard();
-
         numbers.forEach((number) => {
-            const numberCell = Array.from(document.querySelectorAll("#numberBoard td"))
-                .find((cell) => cell.textContent.trim() === number.toString());
-
-            if (numberCell) {
-                numberCell.classList.add("called");
-                numberCell.classList.add("disabled");
-            }
+            const cell = Array.from(document.querySelectorAll("#numberBoard td"))
+                .find((td) => td.textContent.trim() === number.toString());
+            if (cell) cell.classList.add("called", "disabled");
         });
     }
 
-    function updateStartButton(roomState) {
-        if (!startGameBtn || !roomState) {
-            return;
-        }
+    // ─── Start/Stop ────────────────────────────────────────
 
-        const isGameStarted = roomState.status === "active";
-        startGameBtn.textContent = isGameStarted ? "Stop Game" : "Start Game";
-        startGameBtn.classList.toggle("game-active", isGameStarted);
+    function updateStartButton(roomState) {
+        if (!startGameBtn || !roomState) return;
+        const isActive = roomState.status === "active";
+        startGameBtn.textContent = isActive ? "Stop Game" : "Start Game";
+        startGameBtn.classList.toggle("stop-game", isActive);
     }
 
     function applyRoomState(roomState) {
@@ -62,178 +79,101 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStartButton(roomState);
     }
 
-    async function unlockInput() {
-        const callerKey = lockKeyInput ? lockKeyInput.value.trim() : "";
-        const state = getState();
-
-        if (!state.roomCode) {
-            alert("Create or join a room first.");
-            return;
-        }
-
-        if (!callerKey) {
-            alert("Enter the caller key.");
-            return;
-        }
-
-        state.callerKey = callerKey;
-        sessionStorage.setItem("bingoCallerKey", callerKey);
-        isBoardUnlocked = true;
-
-        if (board) {
-            board.classList.add("unlocked");
-        }
-
-        if (reset) {
-            reset.classList.add("unlocked");
-        }
-
-        if (startGameBtn) {
-            startGameBtn.classList.add("unlocked");
-        }
-
-        setCallerControlsVisible(true);
-        alert("Caller controls unlocked for this browser.");
-    }
-
     async function toggleGameStatus() {
-        const state = getState();
+        const appState = getState();
 
         if (!isBoardUnlocked) {
-            alert("Please unlock the board first by entering the caller key.");
+            alert("Unlock host controls first.");
             return;
         }
 
         try {
-            const roomState = state.roomStatus === "active"
-                ? await BingoApi.stopRoom(state.roomCode, state.callerKey)
-                : await BingoApi.startRoom(state.roomCode, state.callerKey);
+            const roomState = appState.roomStatus === "active"
+                ? await BingoApi.stopRoom(appState.roomCode, appState.callerKey)
+                : await BingoApi.startRoom(appState.roomCode, appState.callerKey);
 
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
             alert(error.message);
         }
     }
+
+    // ─── Call number ───────────────────────────────────────
 
     async function callNumber(number) {
-        const state = getState();
+        const appState = getState();
 
         if (!isBoardUnlocked) {
-            alert("Please unlock the board first by entering the caller key.");
+            alert("Unlock host controls first.");
             return;
         }
-
-        if (state.roomStatus !== "active") {
-            alert('Please start the game first by clicking the "Start Game" button.');
+        if (appState.roomStatus !== "active") {
+            alert("Start the game first.");
             return;
         }
-
-        if ((state.calledNumbers || []).includes(number)) {
-            alert("This number has already been called");
-            return;
-        }
+        if ((appState.calledNumbers || []).includes(number)) return;
 
         try {
-            const roomState = await BingoApi.callNumber(state.roomCode, state.callerKey, number);
+            const roomState = await BingoApi.callNumber(appState.roomCode, appState.callerKey, number);
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
             alert(error.message);
         }
     }
+
+    // ─── Reset game ────────────────────────────────────────
 
     async function resetGame() {
-        const state = getState();
+        const appState = getState();
 
         if (!isBoardUnlocked) {
-            alert("Please unlock the board first by entering the caller key.");
+            alert("Unlock host controls first.");
             return;
         }
-
-        if (!confirm("Are you sure you want to reset the game? This will clear called numbers and winners.")) {
-            return;
-        }
+        if (!confirm("Reset the game? This clears all called numbers and winners.")) return;
 
         try {
-            const roomState = await BingoApi.resetRoom(state.roomCode, state.callerKey);
+            const roomState = await BingoApi.resetRoom(appState.roomCode, appState.callerKey);
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
             alert(error.message);
         }
     }
 
+    // ─── Event listeners ───────────────────────────────────
+
     if (board) {
-        board.addEventListener("click", (event) => {
-            const cell = event.target.closest("td");
-
-            if (!cell || cell.textContent.trim() === "") {
-                return;
-            }
-
+        board.addEventListener("click", (e) => {
+            const cell = e.target.closest("td");
+            if (!cell || !cell.textContent.trim()) return;
             callNumber(Number(cell.textContent));
         });
     }
 
-    if (reset) {
-        reset.addEventListener("click", resetGame);
-    }
-
-    if (startGameBtn) {
-        startGameBtn.addEventListener("click", toggleGameStatus);
-    }
-
-    if (unlockButton) {
-        unlockButton.addEventListener("click", unlockInput);
-    }
+    if (resetBtn)     resetBtn.addEventListener("click", resetGame);
+    if (startGameBtn) startGameBtn.addEventListener("click", toggleGameStatus);
+    if (unlockGameBtn) unlockGameBtn.addEventListener("click", unlockInput);
 
     if (lockKeyInput) {
-        lockKeyInput.addEventListener("keypress", (event) => {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                unlockInput();
-            }
+        lockKeyInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") { e.preventDefault(); unlockInput(); }
         });
     }
 
-    const style = document.createElement("style");
-    style.textContent = `
-        #numberBoard td.called {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
-        }
-        #numberBoard td.disabled {
-            background-color: #fff;
-            color: red;
-            text-decoration: line-through;
-            cursor: not-allowed;
-        }
-        #numberBoard:not(.unlocked) td {
-            cursor: not-allowed;
-            background-color: #7d9db1;
-            color: #7d9db1;
-        }
-        #numberBoard.unlocked td {
-            cursor: pointer;
-            background-color: #eaf8f9;
-        }
-        #startGame {
-            color: #999;
-            cursor: not-allowed;
-        }
-        #startGame.unlocked {
-            color: #000;
-            cursor: pointer;
-        }
-        #startGame.game-active {
-            background-color: #f44336;
-            color: white;
-        }
-    `;
-    document.head.appendChild(style);
+    // ─── Init ──────────────────────────────────────────────
+
     setCallerControlsVisible(false);
+
+    // ─── Public API ────────────────────────────────────────
 
     window.BingoCaller = {
         applyRoomState,
-        markCalledNumbers
+        markCalledNumbers,
+        unlockWithKey,
+        lock() {
+            isBoardUnlocked = false;
+            setCallerControlsVisible(false);
+            if (lockKeyInput) lockKeyInput.value = "";
+        }
     };
 });

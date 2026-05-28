@@ -3,318 +3,789 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bingo Generator (1-25)</title>
+    <title>Bingo Madness</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            flex-direction: column;
-            /*padding-bottom: 100px;*/
-            margin: 0px;
-            background-color: rgb(74 95 112);
-            color: #e0e0e0;
-
-        }
-        h1,h2,h3{
-            margin: 10px;
-        }
-        .marked { 
-            background-color: red; 
-            color: white; 
-            text-decoration: line-through; 
-        }
-        .called-numbers {
-            display: flex;
-            flex-direction: column;
-            border: 1px solid #94d3b6;
-            padding: 10px;
-            margin-bottom: 20px;
-            max-width: 200px;
-            min-width: 200px;
-            height: 175px;
-            background-color: #083e401c;
+        :root {
+            --black:  #000;
+            --white:  #fff;
+            --yellow: #ffe500;
+            --red:    #e8342a;
+            --teal:   #0dd3c5;
+            --green:  #00c069;
+            --bg:     #1a1a1a;
+            --panel:  #f0ede6;
+            --b3: 3px solid #000;
+            --b2: 2px solid #000;
+            --shadow:    4px 4px 0 #000;
+            --shadow-lg: 6px 6px 0 #000;
         }
 
-        #calledNumbersList {
-            display: flex;
-            flex-wrap: wrap; /* Allows elements to wrap */
-            flex-direction: row; /* Ensures horizontal layout */
-            max-width: 200px;
-            gap: 5px; /* Adds space between items */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .called-numbers div {
-            flex: 1 1 calc(20% - 10px); /* Makes sure 5 items fit in one row */
-            max-width: calc(20% - 10px); /* Limits max width to ensure 5 per row */
-            text-align: center;
-            max-height: fit-content;
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            font-family: 'Space Grotesk', system-ui, sans-serif;
+            color: var(--black);
+            -webkit-text-size-adjust: 100%;
         }
 
-        .game-container {
-            display: flex;
+        button, input { font: inherit; touch-action: manipulation; }
+
+        /* ── VIEWS ── */
+        .view { display: none; }
+
+        /* ══════════════════════════════
+           LOBBY VIEW
+        ══════════════════════════════ */
+
+        #lobby-view {
+            min-height: 100vh;
             justify-content: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #efefef;
+            align-items: flex-start;
+            padding: 40px 20px;
+            background:
+                radial-gradient(ellipse at 10% 90%, rgba(255,229,0,0.07) 0%, transparent 55%),
+                radial-gradient(ellipse at 90% 10%, rgba(13,211,197,0.06) 0%, transparent 45%),
+                var(--bg);
         }
 
-        .lock-section {
+        #lobby-view.active { display: flex; }
+
+        @media (min-height: 640px) {
+            #lobby-view { align-items: center; }
+        }
+
+        .lobby-card {
+            width: 100%;
+            max-width: 460px;
+            background: var(--white);
+            border: var(--b3);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .lobby-header {
+            padding: 28px 32px 22px;
+            background: var(--yellow);
+            border-bottom: var(--b3);
+        }
+
+        .lobby-header h1 {
+            font-size: clamp(38px, 9vw, 54px);
+            font-weight: 700;
+            line-height: 0.88;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .lobby-header .tagline {
+            margin-top: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .lobby-body {
+            padding: 28px 32px 32px;
             display: flex;
-            column-gap: 10px;
-        }
-        #numberInput, #lockKey {
-            width: 150px;
-            margin-right: 10px;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        /* CSS */
+        .lobby-body input {
+            width: 100%;
+            height: 48px;
+            border: var(--b3);
+            padding: 0 14px;
+            font-size: 14px;
+            font-weight: 700;
+            background: var(--white);
+            outline: none;
+            box-shadow: var(--shadow);
+        }
+
+        .lobby-body input::placeholder {
+            font-weight: 400;
+            color: #aaa;
+        }
+
+        .lobby-body input:focus {
+            background: #fffbe6;
+            box-shadow: 4px 4px 0 var(--teal);
+        }
+
+        .lobby-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .lobby-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 6px 0 2px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: #aaa;
+            text-transform: uppercase;
+        }
+
+        .lobby-divider::before,
+        .lobby-divider::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: #e8e8e8;
+        }
+
+        /* ── BUTTONS ── */
         .button-6 {
-          align-items: center;
-          background-color: #efefef;
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          border-radius: .25rem;
-          box-shadow: rgba(0, 0, 0, 0.05) 0 5px 10px 5px;
-          box-sizing: border-box;
-          color: rgba(255, 255, 255, 0.85);
-          cursor: pointer;
-          display: inline-flex;
-          font-family: system-ui,-apple-system,system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
-          font-size: 16px;
-          font-weight: 600;
-          justify-content: center;
-          line-height: 1.25;
-          margin: 0;
-          min-height: 3rem;
-          padding: calc(.875rem - 1px) calc(1.5rem - 1px);
-          position: relative;
-          text-decoration: none;
-          transition: all 250ms;
-          user-select: none;
-          -webkit-user-select: none;
-          touch-action: manipulation;
-          vertical-align: baseline;
-          width: 30px;
-          margin-top: auto;
-          margin-right: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 48px;
+            padding: 0 20px;
+            border: var(--b3);
+            background: var(--black);
+            color: var(--white);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: transform 80ms ease, box-shadow 80ms ease;
+            user-select: none;
+            white-space: nowrap;
         }
 
         .button-6:hover,
-        .button-6:focus {
-          border-color: rgba(0, 0, 0, 0.15);
-          box-shadow: rgba(0, 0, 0, 0.20) 0 4px 12px;
-          color: rgba(0, 0, 0, 0.65);
-        }
-
-        .button-6:hover {
-          transform: translateY(-1px);
+        .button-6:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 #000;
         }
 
         .button-6:active {
-          background-color: #F0F0F1;
-          border-color: rgba(0, 0, 0, 0.15);
-          box-shadow: rgba(0, 0, 0, 0.06) 0 2px 4px;
-          color: rgba(0, 0, 0, 0.65);
-          transform: translateY(0);
+            transform: translate(4px, 4px);
+            box-shadow: none;
         }
+
+        #joinRoom   { background: var(--teal); color: var(--black); width: 100%; }
+        #createRoom { background: var(--red);  color: var(--white); }
+
+        /* ══════════════════════════════
+           GAME VIEW
+        ══════════════════════════════ */
+
+        #game-view.active { display: block; min-height: 100vh; }
+
+        .main-container {
+            width: min(1180px, calc(100% - 32px));
+            margin: 24px auto;
+            background: var(--white);
+            border: var(--b3);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        /* ── HEADER ── */
+        .app-header {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 16px;
+            align-items: center;
+            padding: 18px 28px;
+            background: var(--yellow);
+            border-bottom: var(--b3);
+        }
+
+        .header-title h1 {
+            font-size: clamp(18px, 2.8vw, 26px);
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+
+        .header-title .tagline {
+            margin-top: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        #roomCodeDisplay {
+            padding: 6px 12px;
+            border: var(--b3);
+            background: var(--black);
+            color: var(--white);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        #gameStatus {
+            padding: 6px 12px;
+            border: var(--b3);
+            background: var(--white);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        #gameStatus[data-status="active"] {
+            background: var(--red);
+            color: var(--white);
+            border-color: var(--red);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #playerCount {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        #leaveRoom {
+            height: 38px;
+            padding: 0 14px;
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        /* ── GAME AREA ── */
+        .game-container {
+            display: grid;
+            grid-template-columns: minmax(290px, 1fr) 280px;
+            gap: 24px;
+            align-items: start;
+            padding: 28px;
+            background: var(--panel);
+            border-bottom: var(--b3);
+        }
+
+        .bingo-table-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #bingoTable {
+            width: min(100%, 430px);
+            aspect-ratio: 1 / 1;
+            table-layout: fixed;
+            border-collapse: separate;
+            border-spacing: 5px;
+        }
+
+        th {
+            height: 36px;
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--black);
+        }
+
         td {
-            width: 50px;
-            height: 50px;
-            border: 1px solid #94d3b6;
+            width: 20%;
+            height: 60px;
+            border: var(--b2);
             text-align: center;
             vertical-align: middle;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            background: var(--white);
+            color: var(--black);
+            font-size: 22px;
+            font-weight: 700;
+            transition: background-color 100ms, transform 80ms, box-shadow 80ms;
         }
-        td:hover {
-            background-color: #e0e0e0;
+
+        td:hover,
+        td:active {
+            background: #fffbe6;
+            transform: translate(-1px, -1px);
+            box-shadow: 2px 2px 0 #000;
         }
-        td.called {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
+
+        td.marked {
+            background: var(--yellow);
+            border-color: var(--black);
+            box-shadow: 2px 2px 0 #000;
         }
+
+        td.called  { background: var(--teal); color: var(--black); }
+
+        td.marked.called {
+            background: var(--green);
+            color: var(--white);
+            border-color: #009952;
+        }
+
         td.disabled {
-            background-color: #f0f0f0;
-            color: #999;
+            background: #e4e2dc;
+            color: #aaa;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
-        #numberBoard td{
-            height: 30px;
-            width: 30px;
-            color: #837f7f;
+
+        .game-locked #bingoTable td { cursor: not-allowed; }
+
+        /* ── SIDEBAR ── */
+        .column2 { display: grid; gap: 10px; }
+
+        #playerName {
+            padding: 10px 14px;
+            border: var(--b3);
+            background: var(--white);
+            box-shadow: var(--shadow);
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
         }
-        .column2{
-            margin-left: 20px;
-            text-align: left;
+
+        .called-numbers {
+            border: var(--b3);
+            background: var(--white);
+            box-shadow: var(--shadow);
+            overflow: hidden;
         }
-        /* Add styles for player info and status displays */
-        #playerCount, #gameStatus {
-            margin: 10px 0;
-            font-size: 14px;
+
+        .called-numbers > span {
+            display: block;
+            padding: 9px 14px;
+            border-bottom: var(--b3);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: var(--black);
+            color: var(--white);
         }
-        /* Styles for caller controls */
-        #callerControls {
-            display: none;
-            /* padding: 15px;
-            border: 1px solid #94d3b6; */
-            background-color: #275a5e17;
-            flex-direction: row;
-            width: 280px;
+
+        #calledNumbersList {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            padding: 8px;
+            min-height: 168px;
         }
-        .winners-list {
-            max-height: 150px;
-            overflow-y: auto;
-            margin-top: 10px;
-            border-top: 1px solid #eee;
-            padding: 5px;
-            font-size: 15px;
+
+        #calledNumbersList div {
+            display: grid;
+            place-items: center;
+            aspect-ratio: 1;
+            border: var(--b2);
+            background: var(--teal);
+            color: var(--black);
+            font-size: 13px;
+            font-weight: 700;
         }
-        .game-locked #bingoTable td {
-            cursor: not-allowed;
+
+        #playerReset {
+            width: 100%;
+            background: var(--yellow) !important;
+            color: var(--black) !important;
+            border-color: var(--black) !important;
         }
-        #reset{
-            display: none;
-            align-self: normal;
+
+        /* ══════════════════════════════
+           CALLER SECTION
+        ══════════════════════════════ */
+
+        .caller-container { background: var(--black); }
+
+        /* Unlock strip — visible before host unlocks */
+        #unlockStrip {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 28px;
+            border-top: 2px solid rgba(255,255,255,0.07);
+            flex-wrap: wrap;
         }
-        .main-container{
-            width: 700px;
-            margin: auto;
-            background-color: #7d9db1;
-            box-shadow: 0 0 100px rgb(0 200 255 / 60%);
+
+        .unlock-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.25);
+            white-space: nowrap;
         }
-        .player-container{
-            text-align: center;
-        }
-        .caller-container{
-            /* display: none; */
-            align-items: flex-start;
-            flex-direction: row;
+
+        .unlock-form {
+            display: flex;
             gap: 10px;
-            margin: 0px 20px 20px 20px;
-            justify-content: center;
+            flex: 1;
+            min-width: 220px;
+            max-width: 400px;
         }
-        .unlock-section{
+
+        #lockKey {
+            flex: 1;
+            height: 42px;
+            border: 2px solid rgba(255,255,255,0.15);
+            padding: 0 12px;
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.05);
+            color: var(--white);
+            outline: none;
+        }
+
+        #lockKey::placeholder { color: rgba(255,255,255,0.25); font-weight: 400; }
+
+        #lockKey:focus {
+            border-color: var(--teal);
+            background: rgba(13,211,197,0.08);
+        }
+
+        #unlock {
+            height: 42px;
+            padding: 0 16px;
+            background: rgba(255,255,255,0.08);
+            color: var(--white);
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: none;
+            font-size: 11px;
+        }
+
+        #unlock:hover,
+        #unlock:active {
+            background: var(--teal);
+            color: var(--black);
+            border-color: var(--teal);
+            transform: translate(2px, 2px);
+        }
+
+        /* Caller inner — visible after unlock */
+        .caller-inner {
+            display: none; /* shown by JS */
+            grid-template-columns: 260px minmax(300px, 1fr) 54px;
+            gap: 16px;
+            align-items: stretch;
+            padding: 24px 28px;
+        }
+
+        #callerControls {
             display: flex;
             flex-direction: column;
-            margin-top: 10px;
-            column-gap: 10px;
-            text-align: center;
-        }
-        #bingoTable{
-            background-color: #f0f0f0;
-            color: #818181;
-        }
-        th{
-            color: #7d9db1;
-            /* color: #e0e0e0; */
-        }
-        .board{
-            display: none;
-        }
-        .room-panel {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            padding: 12px 20px 8px;
-            border-bottom: 1px solid #efefef;
-        }
-        .room-panel input {
-            box-sizing: border-box;
-            width: 100%;
-            min-height: 34px;
-            border: 1px solid rgba(0, 0, 0, 0.15);
-            border-radius: 4px;
-            padding: 6px 8px;
-        }
-        .room-actions {
-            display: flex;
-            gap: 8px;
-            grid-column: 1 / -1;
-        }
-        .room-actions .button-6 {
-            width: auto;
-            min-height: 2.25rem;
-            margin: 0;
-            padding: 0 12px;
-            background-color: #424c69;
-            color: #e0e0e0;
-        }
-        .room-meta {
-            display: flex;
-            justify-content: space-between;
             gap: 12px;
-            grid-column: 1 / -1;
-            color: #fff;
-            font-size: 14px;
+        }
+
+        .caller-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.25);
+        }
+
+        #startGame {
+            width: 100%;
+            background: var(--teal) !important;
+            color: var(--black) !important;
+            border-color: var(--teal) !important;
+            box-shadow: 4px 4px 0 rgba(13,211,197,0.35) !important;
+        }
+
+        #startGame.stop-game {
+            background: var(--red) !important;
+            color: var(--white) !important;
+            border-color: var(--red) !important;
+            box-shadow: 4px 4px 0 rgba(232,52,42,0.35) !important;
+        }
+
+        #callerControls h3 {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: rgba(255,255,255,0.25);
+            margin-bottom: 4px;
+        }
+
+        .winners-list {
+            min-height: 80px;
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 10px 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.55);
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.03);
+        }
+
+        .winners-list::-webkit-scrollbar { width: 3px; }
+        .winners-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); }
+
+        /* ── NUMBER BOARD ── */
+        #numberBoard {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: separate;
+            border-spacing: 5px;
+        }
+
+        #numberBoard td {
+            height: 50px;
+            color: rgba(255,255,255,0.75);
+            font-size: 16px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.07);
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: background-color 100ms, transform 80ms, box-shadow 80ms;
+        }
+
+        #numberBoard td:not(.disabled):not(:empty):hover,
+        #numberBoard td:not(.disabled):not(:empty):active {
+            background: var(--yellow);
+            color: var(--black);
+            border-color: var(--yellow);
+            transform: translate(-1px, -1px);
+            box-shadow: 2px 2px 0 rgba(255,229,0,0.4);
+        }
+
+        #numberBoard td.called {
+            background: var(--teal);
+            color: var(--black);
+            border-color: var(--teal);
+            text-decoration: line-through;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #numberBoard td:empty {
+            background: transparent;
+            border-color: transparent;
+            pointer-events: none;
+        }
+
+        /* ── RESET BUTTON (vertical pill) ── */
+        #reset {
+            background: var(--red) !important;
+            color: var(--white) !important;
+            border-color: var(--red) !important;
+            box-shadow: none !important;
+            writing-mode: vertical-rl;
+            font-size: 10px !important;
+            letter-spacing: 3px;
+            padding: 16px 0 !important;
+            width: 54px !important;
+            align-self: stretch;
+        }
+
+        /* ══════════════════════════════
+           RESPONSIVE
+        ══════════════════════════════ */
+
+        @media (max-width: 880px) {
+            .main-container {
+                width: min(100% - 16px, 680px);
+                margin: 12px auto;
+            }
+
+            .app-header {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 16px 20px;
+            }
+
+            .header-meta { justify-content: flex-start; }
+            .header-right { justify-content: flex-start; }
+
+            .game-container {
+                grid-template-columns: 1fr;
+                padding: 20px;
+                gap: 20px;
+            }
+
+            .caller-inner {
+                grid-template-columns: 1fr;
+                padding: 20px;
+                gap: 16px;
+            }
+
+            #reset {
+                writing-mode: horizontal-tb;
+                width: 100% !important;
+                height: 48px !important;
+                font-size: 12px !important;
+                letter-spacing: 2px;
+                padding: 0 20px !important;
+                align-self: auto;
+            }
+
+            #unlockStrip { padding: 14px 20px; }
+
+            td { height: 52px; font-size: 20px; }
+        }
+
+        @media (max-width: 540px) {
+            .main-container {
+                width: 100%;
+                margin: 0;
+                border-left: none;
+                border-right: none;
+            }
+
+            .lobby-card {
+                max-width: 100%;
+                border-left: none;
+                border-right: none;
+            }
+
+            .lobby-header { padding-left: 20px; padding-right: 20px; }
+            .lobby-body   { padding-left: 20px; padding-right: 20px; }
+            .lobby-row    { grid-template-columns: 1fr; }
+
+            #bingoTable { border-spacing: 3px; }
+            td { height: 42px; font-size: 17px; }
+            th { font-size: 17px; }
+
+            #numberBoard { border-spacing: 3px; }
+            #numberBoard td { height: 38px; font-size: 14px; }
         }
     </style>
 </head>
 <body>
-    <div class="main-container">
-        <div class="player-container">
-            <h1 style="color: #fff; margin-bottom: 0px;">🎉 Bingo Madness 🎉</h1>
-            <h4 style="color: #fff; margin: 0px;">🎯 Mark. Match. Win! 🎯</h4>
-            <div class="room-panel">
-                <input type="text" id="roomCodeInput" placeholder="Room code">
-                <input type="text" id="playerNameInput" placeholder="Your name">
-                <div class="room-actions">
-                    <button id="joinRoom" class="button-6">Join Room</button>
-                    <button id="createRoom" class="button-6">Create Caller Room</button>
+
+    <!-- ════════════════════════════════════════
+         LOBBY VIEW
+    ════════════════════════════════════════ -->
+    <div id="lobby-view" class="view active">
+        <div class="lobby-card">
+            <div class="lobby-header">
+                <h1>Bingo<br>Madness</h1>
+                <p class="tagline">Mark. Match. Win.</p>
+            </div>
+            <div class="lobby-body">
+
+                <input type="text"     id="roomCodeInput"   placeholder="Room code"  autocomplete="off" autocapitalize="characters">
+                <input type="text"     id="playerNameInput" placeholder="Your name"  autocomplete="off">
+                <button id="joinRoom" class="button-6">Join Room</button>
+
+                <div class="lobby-divider">or host a game</div>
+
+                <input type="password" id="lobbyCallerKey"  placeholder="Create a caller key">
+
+                <div class="lobby-row">
+                    <button id="createRoom" class="button-6">Create Room</button>
+                    <button id="unlock"     class="button-6" style="background:rgba(0,0,0,0.06);color:#000;border-color:#ccc;box-shadow:none;">Unlock host</button>
                 </div>
-                <div class="room-meta">
-                    <span id="roomCodeDisplay">No room joined</span>
-                    <span id="roomStatusDisplay">Waiting room</span>
-                </div>
+
             </div>
-            <div id="gameStatus">Game is ready - you can reset your board</div>
-            <div id="playerCount">Players: 0/10</div>
-            
-            <div class="game-container">
-                <table id="bingoTable"></table>
-                <div class="column2">
-                    <div id="playerName" style="margin: 10px 0px;">NAME</div>
-                    <div class="called-numbers">
-                        <span style="color: #eeeeee; padding-bottom: 10px; border-bottom: 1px solid #efefef; margin-bottom: 10px;">Called Numbers</span>
-                        <div id="calledNumbersList"></div>
-                    </div>
-                    <button id="playerReset" class="button-6" style="background-color: #67dde3ba;">Reset</button>
-                </div>
-            </div>
-        </div>
-        <div class="unlock-section">
-            <span style="color: #424c69;">For Bingo caller only</span>
-            <div class="lock-section" style="margin: auto; padding: 10px 0px">
-                <input type="password" id="lockKey" placeholder="Enter Key">
-                <button id="unlock" class="button-6" style="width: 100px!important; margin: 0px!important; padding: 0px!important; min-height: 2rem!important; background-color: #424c69; color: #e0e0e0;">Unlock</button>
-            </div>
-        </div>      
-        <div class="caller-container">
-            <!-- Add Caller Controls section -->
-            <div id="callerControls">
-                <button id="startGame" class="button-6" style="width: 120px!important; margin-right: 10px; margin-top: 0px!important; box-shadow: 0 0 100px rgb(0 200 255 / 60%);">Start Game</button>
-                <div>
-                    <h3>Winners</h3>
-                    <div id="winnersList" class="winners-list">No winners yet</div>
-                </div>
-            </div>
-            <div class="board">
-                <table id="numberBoard" style="margin: auto;">
-                    <tr>
-                        <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
-                    </tr>
-                     <tr>
-                        <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
-                    </tr>
-                     <tr>
-                        <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
-                    </tr>
-                </table>
-            </div>
-            <button id="reset" style="background-color: #ff0b4cb8; color: #e0e0e0; width: 40px!important; margin: 0px!important; min-height: 2rem!important;" class="button-6">Reset</button>
         </div>
     </div>
-    
+
+    <!-- ════════════════════════════════════════
+         GAME VIEW
+    ════════════════════════════════════════ -->
+    <div id="game-view" class="view">
+        <div class="main-container">
+
+            <header class="app-header">
+                <div class="header-title">
+                    <h1>Bingo Madness</h1>
+                    <p class="tagline">Mark. Match. Win.</p>
+                </div>
+                <div class="header-meta">
+                    <div id="roomCodeDisplay">—</div>
+                    <div id="gameStatus" data-status="waiting">Waiting</div>
+                </div>
+                <div class="header-right">
+                    <div id="playerCount">0/10</div>
+                    <button id="leaveRoom" class="button-6">Leave</button>
+                </div>
+            </header>
+
+            <div class="game-container">
+                <div class="bingo-table-wrap">
+                    <table id="bingoTable"></table>
+                </div>
+                <div class="column2">
+                    <div id="playerName">Name: —</div>
+                    <div class="called-numbers">
+                        <span>Called Numbers</span>
+                        <div id="calledNumbersList"></div>
+                    </div>
+                    <button id="playerReset" class="button-6">Reset Board</button>
+                </div>
+            </div>
+
+            <div class="caller-container">
+
+                <!-- Shown before host unlocks -->
+                <div id="unlockStrip">
+                    <span class="unlock-label">Host Controls</span>
+                    <div class="unlock-form">
+                        <input type="password" id="lockKey" placeholder="Enter caller key to unlock">
+                        <button id="unlockGame" class="button-6" style="height:42px;padding:0 16px;font-size:11px;background:rgba(255,255,255,0.08);color:#fff;border:2px solid rgba(255,255,255,0.2);box-shadow:none;">Unlock</button>
+                    </div>
+                </div>
+
+                <!-- Shown after host unlocks -->
+                <div class="caller-inner">
+                    <div id="callerControls">
+                        <span class="caller-section-label">Game Control</span>
+                        <button id="startGame" class="button-6">Start Game</button>
+                        <div>
+                            <h3>Winners</h3>
+                            <div id="winnersList" class="winners-list">No winners yet</div>
+                        </div>
+                    </div>
+                    <div class="board">
+                        <table id="numberBoard">
+                            <tr>
+                                <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
+                            </tr>
+                            <tr>
+                                <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
+                            </tr>
+                            <tr>
+                                <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <button id="reset" class="button-6">Reset</button>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="api.js"></script>
