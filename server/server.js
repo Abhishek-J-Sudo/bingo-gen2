@@ -4,79 +4,58 @@ const path = require("path");
 const http = require("http");
 const crypto = require("crypto");
 const express = require("express");
-const bcrypt = require("bcryptjs");
 const { Server } = require("socket.io");
 const db = require("./db");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: true,
-    credentials: true
-  }
+  cors: { origin: true, credentials: true }
 });
 
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = path.join(__dirname, "..");
+
 const PLAYER_NAMES = [
-  "Excel Ninja",
-  "Deadline Daku",
-  "Chill Operator",
-  "Jugaadu Analyst",
-  "Masti Manager",
-  "Gentle Ghoster",
-  "PowerPoint Pandit",
-  "Reminder Raja",
-  "Thanda TL",
-  "Approval Baba"
+  "Excel Ninja", "Deadline Daku", "Chill Operator", "Jugaadu Analyst",
+  "Masti Manager", "Gentle Ghoster", "PowerPoint Pandit",
+  "Reminder Raja", "Thanda TL", "Approval Baba"
 ];
 
 app.use(express.json({ limit: "64kb" }));
+
 app.use((req, res, next) => {
   const blocked = [
-    "/server/",
-    "/package.json",
-    "/package-lock.json",
-    "/database.rules.json",
-    "/firebase-config.js",
-    "/firebase-config.example.js"
+    "/server/", "/package.json", "/package-lock.json",
+    "/database.rules.json", "/firebase-config.js", "/firebase-config.example.js"
   ];
-
-  if (blocked.some((pathPrefix) => req.path === pathPrefix || req.path.startsWith(pathPrefix))) {
+  if (blocked.some((p) => req.path === p || req.path.startsWith(p))) {
     return res.sendStatus(404);
   }
-
   next();
 });
-app.use(express.static(ROOT_DIR, {
-  extensions: ["html"],
-  index: "index.html"
-}));
 
-function asyncHandler(handler) {
-  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+app.use(express.static(ROOT_DIR, { extensions: ["html"], index: "index.html" }));
+
+// ─── Helpers ──────────────────────────────────────────────
+
+function asyncHandler(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
 function generateRoomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let suffix = "";
-
-  for (let i = 0; i < 5; i += 1) {
-    suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-
+  for (let i = 0; i < 5; i++) suffix += alphabet[Math.floor(Math.random() * alphabet.length)];
   return `BINGO-${suffix}`;
 }
 
 function generateNumbers() {
-  const numbers = Array.from({ length: 25 }, (_, index) => index + 1);
-
-  for (let i = numbers.length - 1; i > 0; i -= 1) {
+  const numbers = Array.from({ length: 25 }, (_, i) => i + 1);
+  for (let i = numbers.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
   }
-
   return numbers;
 }
 
@@ -93,52 +72,38 @@ function normalizePlayerName(name) {
 }
 
 function normalizeMarkedNumbers(markedNumbers) {
-  if (!Array.isArray(markedNumbers)) {
-    return [];
-  }
-
-  return [...new Set(markedNumbers
-    .map((number) => Number(number))
-    .filter((number) => Number.isInteger(number) && number >= 1 && number <= 25))];
+  if (!Array.isArray(markedNumbers)) return [];
+  return [...new Set(
+    markedNumbers
+      .map((n) => Number(n))
+      .filter((n) => Number.isInteger(n) && n >= 1 && n <= 25)
+  )];
 }
 
 function hasBingo(numbers, markedNumbers, calledNumbers) {
   const marked = new Set(markedNumbers);
   const called = new Set(calledNumbers);
-  const validMarked = numbers.every((number) => !marked.has(number) || called.has(number));
 
-  if (!validMarked) {
-    return false;
+  if (!numbers.every((n) => !marked.has(n) || called.has(n))) return false;
+
+  const isMarkedAt = (r, c) => marked.has(numbers[r * 5 + c]);
+
+  for (let r = 0; r < 5; r++) {
+    if ([0,1,2,3,4].every((c) => isMarkedAt(r, c))) return true;
   }
-
-  const isMarkedAt = (row, column) => marked.has(numbers[(row * 5) + column]);
-
-  for (let row = 0; row < 5; row += 1) {
-    if ([0, 1, 2, 3, 4].every((column) => isMarkedAt(row, column))) {
-      return true;
-    }
+  for (let c = 0; c < 5; c++) {
+    if ([0,1,2,3,4].every((r) => isMarkedAt(r, c))) return true;
   }
-
-  for (let column = 0; column < 5; column += 1) {
-    if ([0, 1, 2, 3, 4].every((row) => isMarkedAt(row, column))) {
-      return true;
-    }
-  }
-
-  return [0, 1, 2, 3, 4].every((index) => isMarkedAt(index, index)) ||
-    [0, 1, 2, 3, 4].every((index) => isMarkedAt(index, 4 - index));
+  return [0,1,2,3,4].every((i) => isMarkedAt(i, i)) ||
+         [0,1,2,3,4].every((i) => isMarkedAt(i, 4 - i));
 }
 
 async function createUniqueRoomCode(client) {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 10; attempt++) {
     const code = generateRoomCode();
     const existing = await client.query("select id from rooms where code = $1", [code]);
-
-    if (existing.rowCount === 0) {
-      return code;
-    }
+    if (existing.rowCount === 0) return code;
   }
-
   throw new Error("Unable to generate a unique room code.");
 }
 
@@ -152,8 +117,7 @@ async function getCalledNumbers(roomId) {
     "select number from called_numbers where room_id = $1 order by id asc",
     [roomId]
   );
-
-  return result.rows.map((row) => row.number);
+  return result.rows.map((r) => r.number);
 }
 
 async function getWinners(roomId) {
@@ -165,40 +129,40 @@ async function getWinners(roomId) {
      order by winners.won_at asc`,
     [roomId]
   );
-
-  return result.rows.map((row) => ({
-    id: row.id,
-    playerId: row.player_id,
-    name: row.name,
-    wonAt: row.won_at
-  }));
+  return result.rows.map((r) => ({ id: r.id, playerId: r.player_id, name: r.name, wonAt: r.won_at }));
 }
 
 async function getRoomState(room) {
-  const [calledNumbers, winners, playerCountResult] = await Promise.all([
+  const [calledNumbers, winners, countResult, playersResult, hostPlayerResult] = await Promise.all([
     getCalledNumbers(room.id),
     getWinners(room.id),
-    db.query("select count(*)::int as count from players where room_id = $1", [room.id])
+    db.query("select count(*)::int as count from players where room_id = $1", [room.id]),
+    db.query("select id, name from players where room_id = $1 order by created_at", [room.id]),
+    room.host_session_id
+      ? db.query("select id from players where room_id = $1 and session_id = $2", [room.id, room.host_session_id])
+      : Promise.resolve({ rows: [] })
   ]);
 
   return {
-    roomId: room.id,
-    code: room.code,
-    status: room.status,
-    locked: room.status === "active",
+    roomId:      room.id,
+    code:        room.code,
+    status:      room.status,
+    locked:      room.status === "active",
     calledNumbers,
     winners,
-    playerCount: playerCountResult.rows[0].count
+    playerCount: countResult.rows[0].count,
+    players:     playersResult.rows.map((p) => ({ id: p.id, name: p.name })),
+    hostPlayerId: hostPlayerResult.rows[0]?.id || null
   };
 }
 
-async function assertCaller(room, callerKey) {
-  const ok = await bcrypt.compare(String(callerKey || ""), room.caller_key_hash);
-
-  if (!ok) {
-    const error = new Error("Invalid caller key.");
-    error.status = 401;
-    throw error;
+// Verifies the request comes from the current host
+function assertHost(room, sessionId) {
+  const normalized = normalizeSessionId(sessionId);
+  if (!room.host_session_id || room.host_session_id !== normalized) {
+    const err = new Error("Not authorized as host.");
+    err.status = 403;
+    throw err;
   }
 }
 
@@ -208,55 +172,44 @@ async function emitRoomState(room) {
   return state;
 }
 
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true });
-});
+// ─── Routes ───────────────────────────────────────────────
 
+app.get("/api/health", (req, res) => res.json({ ok: true }));
+
+// Create room — creator's sessionId becomes the host identity
 app.post("/api/rooms", asyncHandler(async (req, res) => {
-  const callerKey = String(req.body.callerKey || "");
+  const sessionId = normalizeSessionId(req.body.sessionId);
 
-  if (callerKey.length < 4) {
-    return res.status(400).json({ error: "Caller key must be at least 4 characters." });
+  if (!sessionId) {
+    return res.status(400).json({ error: "sessionId is required." });
   }
 
-  const result = await db.withTransaction(async (client) => {
+  const room = await db.withTransaction(async (client) => {
     const code = await createUniqueRoomCode(client);
-    const callerKeyHash = await bcrypt.hash(callerKey, 12);
-
-    const roomResult = await client.query(
-      "insert into rooms (code, caller_key_hash) values ($1, $2) returning *",
-      [code, callerKeyHash]
+    const result = await client.query(
+      "insert into rooms (code, host_session_id) values ($1, $2) returning *",
+      [code, sessionId]
     );
-
-    return roomResult.rows[0];
+    return result.rows[0];
   });
 
-  res.status(201).json(await getRoomState(result));
+  res.status(201).json(await getRoomState(room));
 }));
 
 app.get("/api/rooms/:code", asyncHandler(async (req, res) => {
   const room = await getRoomByCode(req.params.code);
-
-  if (!room) {
-    return res.status(404).json({ error: "Room not found." });
-  }
-
+  if (!room) return res.status(404).json({ error: "Room not found." });
   res.json(await getRoomState(room));
 }));
 
 app.post("/api/rooms/:code/join", asyncHandler(async (req, res) => {
   const room = await getRoomByCode(req.params.code);
+  if (!room) return res.status(404).json({ error: "Room not found." });
 
-  if (!room) {
-    return res.status(404).json({ error: "Room not found." });
-  }
-
-  const sessionId = normalizeSessionId(req.body.sessionId);
+  const sessionId     = normalizeSessionId(req.body.sessionId);
   const requestedName = normalizePlayerName(req.body.name);
 
-  if (!sessionId) {
-    return res.status(400).json({ error: "sessionId is required." });
-  }
+  if (!sessionId) return res.status(400).json({ error: "sessionId is required." });
 
   const joined = await db.withTransaction(async (client) => {
     const existing = await client.query(
@@ -268,112 +221,83 @@ app.post("/api/rooms/:code/join", asyncHandler(async (req, res) => {
     );
 
     if (existing.rowCount > 0) {
-      const row = existing.rows[0];
+      const row  = existing.rows[0];
       const name = requestedName || row.name;
-
       if (name !== row.name) {
         await client.query(
           "update players set name = $1, updated_at = now() where id = $2",
           [name, row.id]
         );
       }
-
-      return {
-        playerId: row.id,
-        playerName: name,
-        boardId: row.board_id,
-        numbers: row.numbers,
-        markedNumbers: row.marked_numbers || []
-      };
+      return { playerId: row.id, playerName: name, boardId: row.board_id, numbers: row.numbers, markedNumbers: row.marked_numbers || [] };
     }
 
-    const assignedNames = await client.query(
-      "select name from players where room_id = $1",
-      [room.id]
+    const takenNames = new Set(
+      (await client.query("select name from players where room_id = $1", [room.id])).rows.map((r) => r.name)
     );
-    const takenNames = new Set(assignedNames.rows.map((row) => row.name));
-    const generatedName = PLAYER_NAMES.find((name) => !takenNames.has(name)) ||
-      `Player ${crypto.randomInt(100, 999)}`;
-    const name = requestedName || generatedName;
+    const autoName = PLAYER_NAMES.find((n) => !takenNames.has(n)) || `Player ${crypto.randomInt(100, 999)}`;
+    const name = requestedName || autoName;
 
-    const playerResult = await client.query(
+    const player = (await client.query(
       "insert into players (room_id, name, session_id) values ($1, $2, $3) returning *",
       [room.id, name, sessionId]
-    );
-    const player = playerResult.rows[0];
+    )).rows[0];
+
     const numbers = generateNumbers();
-    const boardResult = await client.query(
+    const board = (await client.query(
       "insert into boards (room_id, player_id, numbers) values ($1, $2, $3) returning *",
       [room.id, player.id, JSON.stringify(numbers)]
-    );
-    const board = boardResult.rows[0];
+    )).rows[0];
 
-    return {
-      playerId: player.id,
-      playerName: player.name,
-      boardId: board.id,
-      numbers: board.numbers,
-      markedNumbers: board.marked_numbers || []
-    };
+    return { playerId: player.id, playerName: player.name, boardId: board.id, numbers: board.numbers, markedNumbers: board.marked_numbers || [] };
   });
 
   const state = await emitRoomState(room);
-
-  res.json({
-    ...joined,
-    room: state
-  });
+  res.json({ ...joined, room: state });
 }));
 
 app.post("/api/rooms/:code/start", asyncHandler(async (req, res) => {
   const room = await getRoomByCode(req.params.code);
+  if (!room) return res.status(404).json({ error: "Room not found." });
 
-  if (!room) {
-    return res.status(404).json({ error: "Room not found." });
-  }
+  assertHost(room, req.body.sessionId);
 
-  await assertCaller(room, req.body.callerKey);
-  const result = await db.query(
+  const updated = (await db.query(
     "update rooms set status = 'active', updated_at = now() where id = $1 returning *",
     [room.id]
-  );
-  const state = await emitRoomState(result.rows[0]);
+  )).rows[0];
 
+  const state = await emitRoomState(updated);
   io.to(room.code).emit("game-started", state);
   res.json(state);
 }));
 
 app.post("/api/rooms/:code/stop", asyncHandler(async (req, res) => {
   const room = await getRoomByCode(req.params.code);
+  if (!room) return res.status(404).json({ error: "Room not found." });
 
-  if (!room) {
-    return res.status(404).json({ error: "Room not found." });
-  }
+  assertHost(room, req.body.sessionId);
 
-  await assertCaller(room, req.body.callerKey);
-  const result = await db.query(
+  const updated = (await db.query(
     "update rooms set status = 'waiting', updated_at = now() where id = $1 returning *",
     [room.id]
-  );
-  const state = await emitRoomState(result.rows[0]);
+  )).rows[0];
 
+  const state = await emitRoomState(updated);
   io.to(room.code).emit("game-stopped", state);
   res.json(state);
 }));
 
 app.post("/api/rooms/:code/call-number", asyncHandler(async (req, res) => {
-  const room = await getRoomByCode(req.params.code);
+  const room   = await getRoomByCode(req.params.code);
   const number = Number(req.body.number);
 
-  if (!room) {
-    return res.status(404).json({ error: "Room not found." });
-  }
-
+  if (!room) return res.status(404).json({ error: "Room not found." });
   if (!Number.isInteger(number) || number < 1 || number > 25) {
     return res.status(400).json({ error: "Number must be between 1 and 25." });
   }
 
-  await assertCaller(room, req.body.callerKey);
+  assertHost(room, req.body.sessionId);
 
   await db.query(
     "insert into called_numbers (room_id, number) values ($1, $2) on conflict do nothing",
@@ -387,12 +311,9 @@ app.post("/api/rooms/:code/call-number", asyncHandler(async (req, res) => {
 
 app.post("/api/rooms/:code/reset", asyncHandler(async (req, res) => {
   const room = await getRoomByCode(req.params.code);
+  if (!room) return res.status(404).json({ error: "Room not found." });
 
-  if (!room) {
-    return res.status(404).json({ error: "Room not found." });
-  }
-
-  await assertCaller(room, req.body.callerKey);
+  assertHost(room, req.body.sessionId);
 
   await db.withTransaction(async (client) => {
     await client.query("delete from winners where room_id = $1", [room.id]);
@@ -403,8 +324,39 @@ app.post("/api/rooms/:code/reset", asyncHandler(async (req, res) => {
 
   const updatedRoom = await getRoomByCode(room.code);
   const state = await emitRoomState(updatedRoom);
-
   io.to(room.code).emit("game-reset", state);
+  res.json(state);
+}));
+
+// Transfer host to another player in the room
+app.post("/api/rooms/:code/transfer-host", asyncHandler(async (req, res) => {
+  const room = await getRoomByCode(req.params.code);
+  if (!room) return res.status(404).json({ error: "Room not found." });
+
+  assertHost(room, req.body.sessionId);
+
+  const newHostPlayerId = String(req.body.newHostPlayerId || "").trim();
+  if (!newHostPlayerId) {
+    return res.status(400).json({ error: "newHostPlayerId is required." });
+  }
+
+  const playerResult = await db.query(
+    "select session_id from players where id = $1 and room_id = $2",
+    [newHostPlayerId, room.id]
+  );
+
+  if (playerResult.rowCount === 0) {
+    return res.status(404).json({ error: "Player not found in this room." });
+  }
+
+  await db.query(
+    "update rooms set host_session_id = $1, updated_at = now() where id = $2",
+    [playerResult.rows[0].session_id, room.id]
+  );
+
+  const updatedRoom = await getRoomByCode(room.code);
+  const state = await emitRoomState(updatedRoom);
+  io.to(room.code).emit("host-transferred", state);
   res.json(state);
 }));
 
@@ -418,15 +370,10 @@ app.post("/api/boards/:boardId/reset", asyncHandler(async (req, res) => {
     [req.params.boardId, normalizeSessionId(req.body.sessionId)]
   );
 
-  if (boardResult.rowCount === 0) {
-    return res.status(404).json({ error: "Board not found." });
-  }
+  if (boardResult.rowCount === 0) return res.status(404).json({ error: "Board not found." });
 
   const board = boardResult.rows[0];
-
-  if (board.status === "active") {
-    return res.status(409).json({ error: "Game is active. Board cannot be reset now." });
-  }
+  if (board.status === "active") return res.status(409).json({ error: "Game is active. Board cannot be reset now." });
 
   const numbers = generateNumbers();
   const result = await db.query(
@@ -434,39 +381,27 @@ app.post("/api/boards/:boardId/reset", asyncHandler(async (req, res) => {
     [JSON.stringify(numbers), board.id]
   );
 
-  res.json({
-    boardId: result.rows[0].id,
-    numbers: result.rows[0].numbers,
-    markedNumbers: result.rows[0].marked_numbers || []
-  });
+  res.json({ boardId: result.rows[0].id, numbers: result.rows[0].numbers, markedNumbers: result.rows[0].marked_numbers || [] });
 }));
 
 app.post("/api/boards/:boardId/mark", asyncHandler(async (req, res) => {
-  const sessionId = normalizeSessionId(req.body.sessionId);
+  const sessionId     = normalizeSessionId(req.body.sessionId);
   const markedNumbers = normalizeMarkedNumbers(req.body.markedNumbers);
+
   const result = await db.query(
-    `update boards
-     set marked_numbers = $1, updated_at = now()
+    `update boards set marked_numbers = $1, updated_at = now()
      from players
-     where boards.id = $2
-       and boards.player_id = players.id
-       and players.session_id = $3
+     where boards.id = $2 and boards.player_id = players.id and players.session_id = $3
      returning boards.*`,
     [JSON.stringify(markedNumbers), req.params.boardId, sessionId]
   );
 
-  if (result.rowCount === 0) {
-    return res.status(404).json({ error: "Board not found." });
-  }
-
-  res.json({
-    boardId: result.rows[0].id,
-    markedNumbers: result.rows[0].marked_numbers || []
-  });
+  if (result.rowCount === 0) return res.status(404).json({ error: "Board not found." });
+  res.json({ boardId: result.rows[0].id, markedNumbers: result.rows[0].marked_numbers || [] });
 }));
 
 app.post("/api/boards/:boardId/bingo", asyncHandler(async (req, res) => {
-  const sessionId = normalizeSessionId(req.body.sessionId);
+  const sessionId   = normalizeSessionId(req.body.sessionId);
   const boardResult = await db.query(
     `select boards.*, players.name, rooms.code, rooms.status
      from boards
@@ -476,13 +411,11 @@ app.post("/api/boards/:boardId/bingo", asyncHandler(async (req, res) => {
     [req.params.boardId, sessionId]
   );
 
-  if (boardResult.rowCount === 0) {
-    return res.status(404).json({ error: "Board not found." });
-  }
+  if (boardResult.rowCount === 0) return res.status(404).json({ error: "Board not found." });
 
-  const board = boardResult.rows[0];
+  const board        = boardResult.rows[0];
   const calledNumbers = await getCalledNumbers(board.room_id);
-  const winner = hasBingo(board.numbers, board.marked_numbers || [], calledNumbers);
+  const winner       = hasBingo(board.numbers, board.marked_numbers || [], calledNumbers);
 
   if (!winner || board.status !== "active") {
     return res.status(409).json({ error: "Bingo is not valid yet." });
@@ -493,25 +426,27 @@ app.post("/api/boards/:boardId/bingo", asyncHandler(async (req, res) => {
     [board.room_id, board.player_id]
   );
 
-  const room = await getRoomByCode(board.code);
+  const room  = await getRoomByCode(board.code);
   const state = await emitRoomState(room);
   io.to(room.code).emit("winner-added", state);
   res.json(state);
 }));
 
+// ─── Socket ───────────────────────────────────────────────
+
 io.on("connection", (socket) => {
   socket.on("join-room", async ({ code }) => {
     const room = await getRoomByCode(code);
-
     if (!room) {
       socket.emit("error", { error: "Room not found." });
       return;
     }
-
     socket.join(room.code);
     socket.emit("room-state", await getRoomState(room));
   });
 });
+
+// ─── Error handler ────────────────────────────────────────
 
 app.use((error, req, res, next) => {
   console.error(error);
@@ -520,11 +455,11 @@ app.use((error, req, res, next) => {
   });
 });
 
+// ─── Start ────────────────────────────────────────────────
+
 db.migrate()
   .then(() => {
-    server.listen(PORT, () => {
-      console.log(`BingoGen listening on port ${PORT}`);
-    });
+    server.listen(PORT, () => console.log(`BingoGen listening on port ${PORT}`));
   })
   .catch((error) => {
     console.error("Failed to start server:", error);

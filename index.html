@@ -424,76 +424,52 @@
 
         .caller-container { background: var(--black); }
 
-        /* Unlock strip — visible before host unlocks */
-        #unlockStrip {
+        /* Transfer host controls */
+        .transfer-row {
             display: flex;
+            gap: 8px;
             align-items: center;
-            gap: 16px;
-            padding: 16px 28px;
-            border-top: 2px solid rgba(255,255,255,0.07);
-            flex-wrap: wrap;
+            margin-top: 6px;
         }
 
-        .unlock-label {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.25);
-            white-space: nowrap;
-        }
-
-        .unlock-form {
-            display: flex;
-            gap: 10px;
-            flex: 1;
-            min-width: 220px;
-            max-width: 400px;
-        }
-
-        #lockKey {
+        .transfer-select {
             flex: 1;
             height: 42px;
-            border: 2px solid rgba(255,255,255,0.15);
-            padding: 0 12px;
-            font-size: 13px;
+            border: 2px solid rgba(255,255,255,0.2);
+            padding: 0 10px;
+            font-size: 12px;
             font-weight: 700;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.07);
             color: var(--white);
             outline: none;
+            cursor: pointer;
         }
 
-        #lockKey::placeholder { color: rgba(255,255,255,0.25); font-weight: 400; }
+        .transfer-select option { background: #222; color: #fff; }
 
-        #lockKey:focus {
-            border-color: var(--teal);
-            background: rgba(13,211,197,0.08);
-        }
-
-        #unlock {
+        #transferHostBtn {
             height: 42px;
-            padding: 0 16px;
-            background: rgba(255,255,255,0.08);
+            padding: 0 14px;
+            font-size: 11px;
+            background: rgba(255,255,255,0.1);
             color: var(--white);
             border: 2px solid rgba(255,255,255,0.2);
             box-shadow: none;
-            font-size: 11px;
         }
 
-        #unlock:hover,
-        #unlock:active {
+        #transferHostBtn:hover,
+        #transferHostBtn:active {
             background: var(--teal);
             color: var(--black);
             border-color: var(--teal);
-            transform: translate(2px, 2px);
         }
 
-        /* Caller inner — visible after unlock */
+        /* Caller inner — shown by JS when user is the host */
         .caller-inner {
-            display: none; /* shown by JS */
-            grid-template-columns: 260px minmax(300px, 1fr) 54px;
+            display: none;
+            grid-template-columns: 260px minmax(300px, 1fr);
             gap: 16px;
-            align-items: stretch;
+            align-items: start;
             padding: 24px 28px;
         }
 
@@ -592,18 +568,14 @@
             pointer-events: none;
         }
 
-        /* ── RESET BUTTON (vertical pill) ── */
+        /* ── RESET BUTTON ── */
         #reset {
+            width: 100%;
             background: var(--red) !important;
             color: var(--white) !important;
             border-color: var(--red) !important;
             box-shadow: none !important;
-            writing-mode: vertical-rl;
-            font-size: 10px !important;
-            letter-spacing: 3px;
-            padding: 16px 0 !important;
-            width: 54px !important;
-            align-self: stretch;
+            margin-top: 8px;
         }
 
         /* ══════════════════════════════
@@ -637,17 +609,7 @@
                 gap: 16px;
             }
 
-            #reset {
-                writing-mode: horizontal-tb;
-                width: 100% !important;
-                height: 48px !important;
-                font-size: 12px !important;
-                letter-spacing: 2px;
-                padding: 0 20px !important;
-                align-self: auto;
-            }
-
-            #unlockStrip { padding: 14px 20px; }
+            #reset { margin-top: 0; }
 
             td { height: 52px; font-size: 20px; }
         }
@@ -692,17 +654,12 @@
             </div>
             <div class="lobby-body">
 
-                <input type="text"     id="roomCodeInput"   placeholder="Room code"  autocomplete="off" autocapitalize="characters">
-                <input type="text"     id="playerNameInput" placeholder="Your name"  autocomplete="off">
-                <button id="joinRoom" class="button-6">Join Room</button>
-
-                <div class="lobby-divider">or host a game</div>
-
-                <input type="password" id="lobbyCallerKey"  placeholder="Create a caller key">
+                <input type="text" id="roomCodeInput"   placeholder="Room code" autocomplete="off" autocapitalize="characters">
+                <input type="text" id="playerNameInput" placeholder="Your name" autocomplete="off">
 
                 <div class="lobby-row">
-                    <button id="createRoom" class="button-6">Create Room</button>
-                    <button id="unlock"     class="button-6" style="background:rgba(0,0,0,0.06);color:#000;border-color:#ccc;box-shadow:none;">Unlock host</button>
+                    <button id="joinRoom"   class="button-6">Join Room</button>
+                    <button id="createRoom" class="button-6" style="background:var(--red);color:#fff;">Create Room</button>
                 </div>
 
             </div>
@@ -744,18 +701,8 @@
                 </div>
             </div>
 
+            <!-- Caller section — shown automatically when you are the host -->
             <div class="caller-container">
-
-                <!-- Shown before host unlocks -->
-                <div id="unlockStrip">
-                    <span class="unlock-label">Host Controls</span>
-                    <div class="unlock-form">
-                        <input type="password" id="lockKey" placeholder="Enter caller key to unlock">
-                        <button id="unlockGame" class="button-6" style="height:42px;padding:0 16px;font-size:11px;background:rgba(255,255,255,0.08);color:#fff;border:2px solid rgba(255,255,255,0.2);box-shadow:none;">Unlock</button>
-                    </div>
-                </div>
-
-                <!-- Shown after host unlocks -->
                 <div class="caller-inner">
                     <div id="callerControls">
                         <span class="caller-section-label">Game Control</span>
@@ -764,6 +711,16 @@
                             <h3>Winners</h3>
                             <div id="winnersList" class="winners-list">No winners yet</div>
                         </div>
+                        <div id="transferHostSection" style="display:none;">
+                            <h3>Transfer Host</h3>
+                            <div class="transfer-row">
+                                <select id="transferHostSelect" class="transfer-select">
+                                    <option value="">Hand off to...</option>
+                                </select>
+                                <button id="transferHostBtn" class="button-6">Hand Off</button>
+                            </div>
+                        </div>
+                        <button id="reset" class="button-6">Reset Game</button>
                     </div>
                     <div class="board">
                         <table id="numberBoard">
@@ -778,9 +735,7 @@
                             </tr>
                         </table>
                     </div>
-                    <button id="reset" class="button-6">Reset</button>
                 </div>
-
             </div>
 
         </div>

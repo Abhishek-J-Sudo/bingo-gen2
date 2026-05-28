@@ -1,10 +1,7 @@
 window.BingoApi = {
     async request(path, options = {}) {
         const response = await fetch(path, {
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {})
-            },
+            headers: { "Content-Type": "application/json", ...(options.headers || {}) },
             ...options,
             body: options.body ? JSON.stringify(options.body) : undefined
         });
@@ -18,10 +15,10 @@ window.BingoApi = {
         return data;
     },
 
-    createRoom(callerKey) {
+    createRoom(sessionId) {
         return this.request("/api/rooms", {
             method: "POST",
-            body: { callerKey }
+            body: { sessionId }
         });
     },
 
@@ -36,31 +33,38 @@ window.BingoApi = {
         });
     },
 
-    startRoom(code, callerKey) {
+    startRoom(code, sessionId) {
         return this.request(`/api/rooms/${encodeURIComponent(code)}/start`, {
             method: "POST",
-            body: { callerKey }
+            body: { sessionId }
         });
     },
 
-    stopRoom(code, callerKey) {
+    stopRoom(code, sessionId) {
         return this.request(`/api/rooms/${encodeURIComponent(code)}/stop`, {
             method: "POST",
-            body: { callerKey }
+            body: { sessionId }
         });
     },
 
-    callNumber(code, callerKey, number) {
+    callNumber(code, sessionId, number) {
         return this.request(`/api/rooms/${encodeURIComponent(code)}/call-number`, {
             method: "POST",
-            body: { callerKey, number }
+            body: { sessionId, number }
         });
     },
 
-    resetRoom(code, callerKey) {
+    resetRoom(code, sessionId) {
         return this.request(`/api/rooms/${encodeURIComponent(code)}/reset`, {
             method: "POST",
-            body: { callerKey }
+            body: { sessionId }
+        });
+    },
+
+    transferHost(code, sessionId, newHostPlayerId) {
+        return this.request(`/api/rooms/${encodeURIComponent(code)}/transfer-host`, {
+            method: "POST",
+            body: { sessionId, newHostPlayerId }
         });
     },
 

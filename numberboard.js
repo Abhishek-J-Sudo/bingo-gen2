@@ -1,54 +1,34 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const board       = document.getElementById("numberBoard");
-    const resetBtn    = document.getElementById("reset");
+    const board        = document.getElementById("numberBoard");
+    const resetBtn     = document.getElementById("reset");
     const startGameBtn = document.getElementById("startGame");
-    const lockKeyInput = document.getElementById("lockKey");
-    // Game-view unlock button (separate from lobby #unlock)
-    const unlockGameBtn = document.getElementById("unlockGame");
+    const transferBtn  = document.getElementById("transferHostBtn");
+    const transferSel  = document.getElementById("transferHostSelect");
 
-    let isBoardUnlocked = false;
+    // ─── Visibility ──────────────────────────────────────────
 
-    function getState() {
-        return window.BingoApp ? window.BingoApp.state : {};
-    }
+    function setHostStatus(isHost, players = []) {
+        const callerContainer = document.querySelector(".caller-container");
+        if (callerContainer) callerContainer.style.display = isHost ? "block" : "none";
 
-    // ─── Visibility ────────────────────────────────────────
-
-    function setCallerControlsVisible(visible) {
-        const unlockStrip = document.getElementById("unlockStrip");
-        const callerInner = document.querySelector(".caller-inner");
-
-        if (unlockStrip) unlockStrip.style.display = visible ? "none" : "flex";
-        if (callerInner) callerInner.style.display  = visible ? "grid" : "none";
-    }
-
-    // ─── Unlock ────────────────────────────────────────────
-
-    function unlockWithKey(key) {
-        const appState = getState();
-        appState.callerKey = key;
-        sessionStorage.setItem("bingoCallerKey", key);
-        isBoardUnlocked = true;
-        setCallerControlsVisible(true);
-    }
-
-    async function unlockInput() {
-        const callerKey = lockKeyInput ? lockKeyInput.value.trim() : "";
-        const appState  = getState();
-
-        if (!appState.roomCode) {
-            alert("Join a room first.");
-            return;
+        if (isHost) {
+            populateTransferSelect(players);
         }
-        if (!callerKey) {
-            alert("Enter your caller key.");
-            return;
-        }
-
-        unlockWithKey(callerKey);
     }
 
-    // ─── Number board ──────────────────────────────────────
+    function populateTransferSelect(players) {
+        if (!transferSel) return;
+        const appState   = window.BingoApp ? window.BingoApp.state : {};
+        const others     = players.filter((p) => p.id !== appState.playerId);
+
+        transferSel.innerHTML = '<option value="">Hand off to...</option>' +
+            others.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+
+        const section = document.getElementById("transferHostSection");
+        if (section) section.style.display = others.length > 0 ? "flex" : "none";
+    }
+
+    // ─── Number board ─────────────────────────────────────────
 
     function clearNumberBoard() {
         document.querySelectorAll("#numberBoard td").forEach((cell) => {
@@ -65,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // ─── Start/Stop ────────────────────────────────────────
+    // ─── Start / Stop ─────────────────────────────────────────
 
     function updateStartButton(roomState) {
         if (!startGameBtn || !roomState) return;
@@ -74,23 +54,21 @@ document.addEventListener("DOMContentLoaded", () => {
         startGameBtn.classList.toggle("stop-game", isActive);
     }
 
-    function applyRoomState(roomState) {
+    function applyRoomState(roomState, currentPlayerId) {
         markCalledNumbers(roomState.calledNumbers || []);
         updateStartButton(roomState);
+
+        const isHost = !!(roomState.hostPlayerId && roomState.hostPlayerId === currentPlayerId);
+        setHostStatus(isHost, roomState.players || []);
     }
 
     async function toggleGameStatus() {
-        const appState = getState();
-
-        if (!isBoardUnlocked) {
-            alert("Unlock host controls first.");
-            return;
-        }
+        const appState = window.BingoApp ? window.BingoApp.state : {};
 
         try {
             const roomState = appState.roomStatus === "active"
-                ? await BingoApi.stopRoom(appState.roomCode, appState.callerKey)
-                : await BingoApi.startRoom(appState.roomCode, appState.callerKey);
+                ? await BingoApi.stopRoom(appState.roomCode, appState.sessionId)
+                : await BingoApi.startRoom(appState.roomCode, appState.sessionId);
 
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
@@ -98,15 +76,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ─── Call number ───────────────────────────────────────
+    // ─── Call number ──────────────────────────────────────────
 
     async function callNumber(number) {
-        const appState = getState();
+        const appState = window.BingoApp ? window.BingoApp.state : {};
 
-        if (!isBoardUnlocked) {
-            alert("Unlock host controls first.");
-            return;
-        }
         if (appState.roomStatus !== "active") {
             alert("Start the game first.");
             return;
@@ -114,33 +88,45 @@ document.addEventListener("DOMContentLoaded", () => {
         if ((appState.calledNumbers || []).includes(number)) return;
 
         try {
-            const roomState = await BingoApi.callNumber(appState.roomCode, appState.callerKey, number);
+            const roomState = await BingoApi.callNumber(appState.roomCode, appState.sessionId, number);
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
             alert(error.message);
         }
     }
 
-    // ─── Reset game ────────────────────────────────────────
+    // ─── Reset game ───────────────────────────────────────────
 
     async function resetGame() {
-        const appState = getState();
-
-        if (!isBoardUnlocked) {
-            alert("Unlock host controls first.");
-            return;
-        }
+        const appState = window.BingoApp ? window.BingoApp.state : {};
         if (!confirm("Reset the game? This clears all called numbers and winners.")) return;
 
         try {
-            const roomState = await BingoApi.resetRoom(appState.roomCode, appState.callerKey);
+            const roomState = await BingoApi.resetRoom(appState.roomCode, appState.sessionId);
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
             alert(error.message);
         }
     }
 
-    // ─── Event listeners ───────────────────────────────────
+    // ─── Transfer host ────────────────────────────────────────
+
+    async function transferHost() {
+        const appState     = window.BingoApp ? window.BingoApp.state : {};
+        const newHostId    = transferSel ? transferSel.value : "";
+
+        if (!newHostId) { alert("Select a player to hand off to."); return; }
+        if (!confirm(`Transfer host to this player?`)) return;
+
+        try {
+            const roomState = await BingoApi.transferHost(appState.roomCode, appState.sessionId, newHostId);
+            window.BingoApp.applyRoomState(roomState);
+        } catch (error) {
+            alert(error.message);
+        }
+    }
+
+    // ─── Event listeners ──────────────────────────────────────
 
     if (board) {
         board.addEventListener("click", (e) => {
@@ -150,30 +136,20 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    if (resetBtn)     resetBtn.addEventListener("click", resetGame);
+    if (resetBtn)    resetBtn.addEventListener("click", resetGame);
     if (startGameBtn) startGameBtn.addEventListener("click", toggleGameStatus);
-    if (unlockGameBtn) unlockGameBtn.addEventListener("click", unlockInput);
+    if (transferBtn)  transferBtn.addEventListener("click", transferHost);
 
-    if (lockKeyInput) {
-        lockKeyInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") { e.preventDefault(); unlockInput(); }
-        });
-    }
+    // ─── Init ─────────────────────────────────────────────────
 
-    // ─── Init ──────────────────────────────────────────────
+    // Hide caller section by default — shown when host status is confirmed
+    setHostStatus(false);
 
-    setCallerControlsVisible(false);
-
-    // ─── Public API ────────────────────────────────────────
+    // ─── Public API ───────────────────────────────────────────
 
     window.BingoCaller = {
         applyRoomState,
         markCalledNumbers,
-        unlockWithKey,
-        lock() {
-            isBoardUnlocked = false;
-            setCallerControlsVisible(false);
-            if (lockKeyInput) lockKeyInput.value = "";
-        }
+        setHostStatus
     };
 });
