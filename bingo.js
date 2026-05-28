@@ -72,6 +72,50 @@ function updatePlayerCountDisplay(playerCount = 0) {
     if (el) el.textContent = `${playerCount}/10`;
 }
 
+function renderPlayers(players = [], hostPlayerId = null) {
+    const strip = document.getElementById("playersStrip");
+    if (!strip) return;
+
+    strip.innerHTML = "";
+
+    if (players.length > 0) {
+        const label = document.createElement("span");
+        label.className = "players-label";
+        label.textContent = "Players:";
+        strip.appendChild(label);
+    }
+
+    players.forEach((player, index) => {
+        if (index > 0) {
+            const separator = document.createElement("span");
+            separator.className = "player-separator";
+            separator.textContent = ",";
+            strip.appendChild(separator);
+        }
+
+        const tag = document.createElement("span");
+        tag.className = "player-tag";
+        tag.classList.toggle("current", player.id === state.playerId);
+        tag.classList.toggle("host", player.id === hostPlayerId);
+
+        const name = document.createElement("span");
+        name.textContent = player.name;
+        tag.appendChild(name);
+
+        const badges = [];
+        if (player.id === hostPlayerId) badges.push("Host");
+        if (player.id === state.playerId) badges.push("You");
+
+        if (badges.length > 0) {
+            const currentBadge = document.createElement("strong");
+            currentBadge.textContent = `(${badges.join(", ")})`;
+            tag.appendChild(currentBadge);
+        }
+
+        strip.appendChild(tag);
+    });
+}
+
 function updateGameStatusDisplay() {
     const statusEl    = document.getElementById("gameStatus");
     const playerReset = document.getElementById("playerReset");
@@ -272,6 +316,7 @@ function applyRoomState(roomState) {
     setRoomLabel();
     updateGameStatusDisplay();
     updatePlayerCountDisplay(roomState.playerCount || 0);
+    renderPlayers(roomState.players || [], roomState.hostPlayerId);
     updateCalledNumbersList();
     if (!state.rollTimer) updateRollDisplayFromState();
     renderWinners();
@@ -451,6 +496,7 @@ async function leaveRoom() {
 
     updateCalledNumbersList();
     updateRollDisplayFromState();
+    renderPlayers();
     renderWinners();
     updatePlayerNameDisplay();
     setRoomLabel();

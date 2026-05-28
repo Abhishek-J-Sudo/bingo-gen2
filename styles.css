@@ -286,6 +286,65 @@ input {
   letter-spacing: 1px;
 }
 
+.players-strip {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 8px 28px 0;
+  overflow-x: auto;
+  background: var(--panel);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.players-strip:empty {
+  display: none;
+}
+
+.players-label {
+  flex: 0 0 auto;
+  margin-right: 7px;
+  color: #666;
+}
+
+.player-tag {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  color: var(--black);
+}
+
+.player-tag span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-separator {
+  flex: 0 0 auto;
+  margin: 0 7px 0 -1px;
+  color: var(--black);
+}
+
+.player-tag strong {
+  color: #666;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.player-tag.host {
+  color: var(--black);
+}
+
+.player-tag.current {
+  color: var(--black);
+}
+
 .game-container {
   display: grid;
   grid-template-columns: minmax(290px, 1fr) 280px;
@@ -737,6 +796,10 @@ td.disabled {
   }
   .header-right {
     justify-content: flex-start;
+  }
+
+  .players-strip {
+    padding: 8px 20px 0;
   }
 
   .game-container {
