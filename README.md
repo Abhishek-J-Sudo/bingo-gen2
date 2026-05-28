@@ -23,6 +23,8 @@ npm start
 The backend serves the existing frontend, API routes, and Socket.IO from one
 origin. For Coolify, point `bingogen.apprelay.in` at this Node app and set
 `DATABASE_URL`, `NODE_ENV=production`, and `PORT=3000` in the service settings.
+For Coolify's internal Postgres URL, leave `DATABASE_SSL` unset or set it to
+`false`.
 
 Useful commands:
 
