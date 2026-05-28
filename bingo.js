@@ -108,9 +108,16 @@ function attachCellClickListeners() {
 
 async function handleCellClick(event) {
     const cell = event.target;
+    const number = Number(cell.textContent);
+    const isMarked = cell.classList.contains("marked");
 
     if (state.roomStatus !== "active") {
         alert("Game hasn't started yet. Wait for the host to start the game.");
+        return;
+    }
+
+    if (!isMarked && !state.calledNumbers.includes(number)) {
+        alert("That number has not been called yet.");
         return;
     }
 
@@ -144,12 +151,6 @@ async function resetPlayerBoard() {
 
 async function checkBingo() {
     const marked = new Set(state.markedNumbers);
-    const called = new Set(state.calledNumbers);
-
-    if (state.markedNumbers.length > 0 && !state.markedNumbers.every((n) => called.has(n))) {
-        alert("Number not called");
-        return;
-    }
 
     const isMarkedAt = (r, c) => marked.has(state.boardNumbers[r * 5 + c]);
     const idx = [0, 1, 2, 3, 4];

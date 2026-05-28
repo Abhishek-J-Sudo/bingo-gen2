@@ -404,20 +404,24 @@ td.disabled {
 
 #calledNumbersList {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, 34px);
+  grid-auto-rows: 34px;
   gap: 5px;
+  justify-content: start;
+  align-content: start;
   padding: 8px;
-  min-height: 168px;
+  min-height: 206px;
 }
 
 #calledNumbersList div {
   display: grid;
   place-items: center;
-  aspect-ratio: 1;
+  width: 34px;
+  height: 34px;
   border: var(--b2);
   background: var(--teal);
   color: var(--black);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 

@@ -388,15 +388,33 @@ app.post("/api/boards/:boardId/mark", asyncHandler(async (req, res) => {
   const sessionId     = normalizeSessionId(req.body.sessionId);
   const markedNumbers = normalizeMarkedNumbers(req.body.markedNumbers);
 
-  const result = await db.query(
-    `update boards set marked_numbers = $1, updated_at = now()
-     from players
-     where boards.id = $2 and boards.player_id = players.id and players.session_id = $3
-     returning boards.*`,
-    [JSON.stringify(markedNumbers), req.params.boardId, sessionId]
+  const boardResult = await db.query(
+    `select boards.*, rooms.status
+     from boards
+     join rooms on rooms.id = boards.room_id
+     join players on players.id = boards.player_id
+     where boards.id = $1 and players.session_id = $2`,
+    [req.params.boardId, sessionId]
   );
 
-  if (result.rowCount === 0) return res.status(404).json({ error: "Board not found." });
+  if (boardResult.rowCount === 0) return res.status(404).json({ error: "Board not found." });
+
+  const board = boardResult.rows[0];
+  if (board.status !== "active") {
+    return res.status(409).json({ error: "Game has not started yet." });
+  }
+
+  const calledNumbers = await getCalledNumbers(board.room_id);
+  const called = new Set(calledNumbers);
+  if (markedNumbers.some((number) => !called.has(number))) {
+    return res.status(409).json({ error: "That number has not been called yet." });
+  }
+
+  const result = await db.query(
+    "update boards set marked_numbers = $1, updated_at = now() where id = $2 returning *",
+    [JSON.stringify(markedNumbers), board.id]
+  );
+
   res.json({ boardId: result.rows[0].id, markedNumbers: result.rows[0].marked_numbers || [] });
 }));
 
