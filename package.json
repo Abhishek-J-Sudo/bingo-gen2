@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "node server/server.js",
-    "check": "node --check server/server.js && node --check server/db.js && node --check api.js && node --check bingo.js && node --check numberboard.js && node --check confetti.js"
+    "check": "node --check server/server.js && node --check server/db.js && node --check api.js && node --check dialog.js && node --check bingo.js && node --check numberboard.js && node --check confetti.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

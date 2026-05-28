@@ -24,6 +24,24 @@ function getCellNumbers(selector) {
         .filter((n) => Number.isInteger(n));
 }
 
+function showAlert(message, title) {
+    return window.BingoDialog
+        ? window.BingoDialog.alert(message, title)
+        : Promise.resolve();
+}
+
+function showConfirm(message, title) {
+    return window.BingoDialog
+        ? window.BingoDialog.confirm(message, title)
+        : Promise.resolve(false);
+}
+
+function showWarning(message, title) {
+    return window.BingoDialog
+        ? window.BingoDialog.warning(message, title)
+        : showAlert(message, title);
+}
+
 // ─── View switching ───────────────────────────────────────
 
 function showLobbyView() {
@@ -112,12 +130,12 @@ async function handleCellClick(event) {
     const isMarked = cell.classList.contains("marked");
 
     if (state.roomStatus !== "active") {
-        alert("Game hasn't started yet. Wait for the host to start the game.");
+        await showWarning("Game hasn't started yet. Wait for the host to start the game.", "Game Waiting");
         return;
     }
 
     if (!isMarked && !state.calledNumbers.includes(number)) {
-        alert("That number has not been called yet.");
+        await showWarning("That number has not been called yet.", "Not Called");
         return;
     }
 
@@ -128,14 +146,14 @@ async function handleCellClick(event) {
         await BingoApi.markBoard(state.boardId, state.sessionId, state.markedNumbers);
         await checkBingo();
     } catch (error) {
-        alert(error.message);
+        await showAlert(error.message, "Could Not Mark");
     }
 }
 
 async function resetPlayerBoard() {
-    if (!state.boardId) { alert("Join a room first."); return; }
+    if (!state.boardId) { await showWarning("Join a room first.", "No Room"); return; }
     if (state.roomStatus === "active") {
-        alert("Game is in progress — you can't reset your board right now.");
+        await showWarning("Game is in progress. You can't reset your board right now.", "Board Locked");
         return;
     }
 
@@ -145,7 +163,7 @@ async function resetPlayerBoard() {
         state.markedNumbers = data.markedNumbers || [];
         renderBoard(state.boardNumbers, state.markedNumbers);
     } catch (error) {
-        alert(error.message);
+        await showAlert(error.message, "Could Not Reset");
     }
 }
 
@@ -167,7 +185,7 @@ async function checkBingo() {
         applyRoomState(roomState);
         if (typeof launchConfetti === "function") launchConfetti();
     } catch (error) {
-        alert(error.message);
+        await showAlert(error.message, "Bingo Not Ready");
     }
 }
 
@@ -238,14 +256,14 @@ function connectSocket(code) {
             state.markedNumbers = [];
             applyRoomState(roomState);
             renderBoard(state.boardNumbers, []);
-            alert("The host has reset the game.");
+            showAlert("The host has reset the game.", "Game Reset");
         });
 
         state.socket.on("host-transferred", applyRoomState);
         state.socket.on("winner-added", applyRoomState);
 
         state.socket.on("error", (payload) => {
-            if (payload && payload.error) alert(payload.error);
+            if (payload && payload.error) showAlert(payload.error, "Room Error");
         });
     }
 
@@ -281,7 +299,7 @@ async function createRoom() {
         connectSocket(state.roomCode);
         showGameView();
     } catch (error) {
-        alert(error.message);
+        await showAlert(error.message, "Could Not Create Room");
     }
 }
 
@@ -289,7 +307,7 @@ async function joinRoom() {
     const code = document.getElementById("roomCodeInput")?.value.trim().toUpperCase() || "";
     const name = document.getElementById("playerNameInput")?.value.trim() || "";
 
-    if (!code) { alert("Enter a room code."); return; }
+    if (!code) { await showAlert("Enter a room code.", "Room Code Needed"); return; }
 
     try {
         const data = await BingoApi.joinRoom(code, name, state.sessionId);
@@ -312,7 +330,7 @@ async function joinRoom() {
         connectSocket(state.roomCode);
         showGameView();
     } catch (error) {
-        alert(error.message);
+        await showAlert(error.message, "Could Not Join Room");
     }
 }
 
@@ -348,8 +366,8 @@ async function restoreRoom() {
     }
 }
 
-function leaveRoom() {
-    if (!confirm("Leave this room?")) return;
+async function leaveRoom() {
+    if (!await showConfirm("Leave this room?", "Leave Room")) return;
 
     if (state.socket) {
         state.socket.disconnect();

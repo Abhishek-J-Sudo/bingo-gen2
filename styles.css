@@ -34,6 +34,10 @@ input {
   touch-action: manipulation;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .view {
   display: none;
 }
@@ -605,6 +609,83 @@ td.disabled {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 12px;
+}
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.dialog-overlay.active {
+  display: flex;
+}
+
+.dialog-box {
+  width: min(420px, 100%);
+  border: var(--b3);
+  background: var(--white);
+  box-shadow: var(--shadow-lg);
+}
+
+.dialog-header {
+  padding: 14px 18px;
+  border-bottom: var(--b3);
+  background: var(--yellow);
+}
+
+.dialog-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+#dialogMessage {
+  min-height: 74px;
+  padding: 20px 18px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 18px 18px;
+}
+
+.dialog-overlay:not(.confirm) .dialog-actions {
+  grid-template-columns: 1fr;
+}
+
+#dialogCancel {
+  background: var(--white);
+  color: var(--black);
+}
+
+#dialogConfirm {
+  background: var(--teal);
+  color: var(--black);
+}
+
+.dialog-overlay[data-tone='warning'] .dialog-header {
+  background: #ffebe9;
+}
+
+.dialog-overlay[data-tone='warning'] #dialogConfirm {
+  background: var(--red);
+  color: var(--white);
+}
+
+.dialog-overlay[data-tone='confirm'] #dialogConfirm {
+  background: var(--red);
+  color: var(--white);
 }
 
 @media (max-width: 880px) {

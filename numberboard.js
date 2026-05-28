@@ -5,6 +5,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const transferBtn  = document.getElementById("transferHostBtn");
     const transferSel  = document.getElementById("transferHostSelect");
 
+    function showAlert(message, title) {
+        return window.BingoDialog
+            ? window.BingoDialog.alert(message, title)
+            : Promise.resolve();
+    }
+
+    function showConfirm(message, title) {
+        return window.BingoDialog
+            ? window.BingoDialog.confirm(message, title)
+            : Promise.resolve(false);
+    }
+
+    function showWarning(message, title) {
+        return window.BingoDialog
+            ? window.BingoDialog.warning(message, title)
+            : showAlert(message, title);
+    }
+
     // ─── Visibility ──────────────────────────────────────────
 
     function setHostStatus(isHost, players = []) {
@@ -75,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
-            alert(error.message);
+            await showAlert(error.message, "Game Control");
         }
     }
 
@@ -85,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const appState = window.BingoApp ? window.BingoApp.state : {};
 
         if (appState.roomStatus !== "active") {
-            alert("Start the game first.");
+            await showWarning("Start the game first.", "Game Waiting");
             return;
         }
         if ((appState.calledNumbers || []).includes(number)) return;
@@ -94,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const roomState = await BingoApi.callNumber(appState.roomCode, appState.sessionId, number);
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
-            alert(error.message);
+            await showAlert(error.message, "Could Not Call");
         }
     }
 
@@ -102,13 +120,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function resetGame() {
         const appState = window.BingoApp ? window.BingoApp.state : {};
-        if (!confirm("Reset the game? This clears all called numbers and winners.")) return;
+        if (!await showConfirm("Reset the game? This clears all called numbers and winners.", "Reset Game")) return;
 
         try {
             const roomState = await BingoApi.resetRoom(appState.roomCode, appState.sessionId);
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
-            alert(error.message);
+            await showAlert(error.message, "Could Not Reset");
         }
     }
 
@@ -118,14 +136,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const appState     = window.BingoApp ? window.BingoApp.state : {};
         const newHostId    = transferSel ? transferSel.value : "";
 
-        if (!newHostId) { alert("Select a player to hand off to."); return; }
-        if (!confirm(`Transfer host to this player?`)) return;
+        if (!newHostId) { await showWarning("Select a player to hand off to.", "Choose Player"); return; }
+        if (!await showConfirm("Transfer host to this player?", "Transfer Host")) return;
 
         try {
             const roomState = await BingoApi.transferHost(appState.roomCode, appState.sessionId, newHostId);
             window.BingoApp.applyRoomState(roomState);
         } catch (error) {
-            alert(error.message);
+            await showAlert(error.message, "Could Not Transfer");
         }
     }
 
