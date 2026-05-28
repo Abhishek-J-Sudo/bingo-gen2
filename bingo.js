@@ -1,4 +1,4 @@
-const MASTER_KEY = '123'; // Master key to unlock number input
+const MASTER_KEY = window.BINGO_CALLER_KEY || "";
 let boardId = null; // To track the current player's board ID
 let isGameLocked = false; // Track if the game is locked
 let playerCount = 0; // Track number of active players

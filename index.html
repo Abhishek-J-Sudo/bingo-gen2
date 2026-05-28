@@ -267,78 +267,41 @@
         </div>
     </div>
     
+    <script src="firebase-config.js"></script>
     <script type="module">
         // Import Firebase SDKs
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-analytics.js";
         import { getDatabase, ref, push, onChildAdded, remove, onValue, set, update, get, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
-        import { deleteApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
 
-        const configDocId = "kKkkVGaT0eFI0yDz3NVO"; // Replace with your Firestore document ID
+        const requiredFirebaseConfigKeys = [
+            "apiKey",
+            "authDomain",
+            "databaseURL",
+            "projectId",
+            "storageBucket",
+            "messagingSenderId",
+            "appId"
+        ];
 
-        async function fetchFirebaseConfig() {
-            try {
-                const firestoreApp = getApps().length ? getApp() : initializeApp({ projectId: "bingo-gen-4a60f" });
-                const db = getFirestore(firestoreApp);
-
-                const configRef = doc(db, "config", configDocId);
-                const docSnap = await getDoc(configRef);
-
-                if (docSnap.exists()) {
-                    const configData = docSnap.data();
-                    
-                    // Extensive logging and verification
-                    //console.log("Raw Config Data:", configData);
-                    //console.log("Config Data Type:", typeof configData);
-                    //console.log("Config Keys:", Object.keys(configData));
-                    
-                    // Explicit type checking and conversion
-                    const config = {
-                        apiKey: String(configData.apiKey),
-                        authDomain: String(configData.authDomain),
-                        projectId: String(configData.projectId),
-                        storageBucket: String(configData.storageBucket),
-                        messagingSenderId: String(configData.messagingSenderId),
-                        appId: String(configData.appId)
-                    };
-
-                   // console.log("Processed Config:", config);
-                    //console.log("Config JSON:", JSON.stringify(config));
-
-                    return config;
-                } else {
-                    throw new Error(`No Firebase config document found with ID: ${configDocId}`);
-                }
-            } catch (error) {
-                console.error("Detailed Config Fetch Error:", error);
-                throw error;
+        function getFirebaseConfig() {
+            const config = window.BINGO_FIREBASE_CONFIG;
+            if (!config || typeof config !== "object") {
+                throw new Error("Missing Firebase config. Create firebase-config.js from firebase-config.example.js.");
             }
+
+            const missingKeys = requiredFirebaseConfigKeys.filter((key) => !config[key]);
+            if (missingKeys.length) {
+                throw new Error(`Firebase config is missing: ${missingKeys.join(", ")}`);
+            }
+
+            return config;
         }
 
-        async function initializeFirebase() {
+        function initializeFirebase() {
             try {
-                // Attempt to delete all existing apps
-                const existingApps = getApps();
-                console.log("Existing Apps:", existingApps);
+                const firebaseConfig = getFirebaseConfig();
 
-                for (let app of existingApps) {
-                    try {
-                        await deleteApp(app);
-                        console.log("Deleted app:", app.name);
-                    } catch (deleteError) {
-                        console.error("Error deleting app:", deleteError);
-                    }
-                }
-
-                // Fetch configuration
-                const firebaseConfig = await fetchFirebaseConfig();
-                //console.log("Initializing with config:", firebaseConfig);
-
-                // Initialize a brand new app
-                const app = initializeApp(firebaseConfig, `bingo-app-${Date.now()}`);
-                
-                const analytics = getAnalytics(app);
+                const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
                 const database = getDatabase(app);
                 const bingoRef = ref(database, 'bingo-game');
 
@@ -359,26 +322,11 @@
 
             } catch (error) {
                 console.error("Detailed Firebase Initialization Error:", error);
-                alert(`Firebase Initialization Failed: ${JSON.stringify(error)}`);
+                alert(`Firebase Initialization Failed: ${error.message}`);
             }
         }
 
-        // Explicitly reset and reinitialize
-        function resetFirebaseInitialization() {
-            // Remove any existing Firebase scripts
-            const scripts = document.querySelectorAll('script[src*="firebase"]');
-            scripts.forEach(script => script.remove());
-
-            // Clear any existing Firebase configuration
-            window.firebase = null;
-            
-            // Reinitialize
-            initializeFirebase();
-        }
-
-        // Call initialization
         initializeFirebase();
-
     </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="bingo.js"></script>
