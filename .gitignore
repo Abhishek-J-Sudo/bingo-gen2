@@ -1,4 +1,7 @@
 firebase-config.js
 .env
 .env.*
+server/.env
+node_modules/
+npm-debug.log*
 *.local

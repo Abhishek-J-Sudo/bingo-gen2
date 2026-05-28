@@ -1,0 +1,19 @@
+{
+  "name": "bingo-gen2",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node server/server.js",
+    "check": "node --check server/server.js && node --check server/db.js && node --check api.js && node --check bingo.js && node --check numberboard.js && node --check confetti.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {}
+}

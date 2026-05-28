@@ -212,6 +212,42 @@
         .board{
             display: none;
         }
+        .room-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 12px 20px 8px;
+            border-bottom: 1px solid #efefef;
+        }
+        .room-panel input {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 34px;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            border-radius: 4px;
+            padding: 6px 8px;
+        }
+        .room-actions {
+            display: flex;
+            gap: 8px;
+            grid-column: 1 / -1;
+        }
+        .room-actions .button-6 {
+            width: auto;
+            min-height: 2.25rem;
+            margin: 0;
+            padding: 0 12px;
+            background-color: #424c69;
+            color: #e0e0e0;
+        }
+        .room-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            grid-column: 1 / -1;
+            color: #fff;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -219,6 +255,18 @@
         <div class="player-container">
             <h1 style="color: #fff; margin-bottom: 0px;">🎉 Bingo Madness 🎉</h1>
             <h4 style="color: #fff; margin: 0px;">🎯 Mark. Match. Win! 🎯</h4>
+            <div class="room-panel">
+                <input type="text" id="roomCodeInput" placeholder="Room code">
+                <input type="text" id="playerNameInput" placeholder="Your name">
+                <div class="room-actions">
+                    <button id="joinRoom" class="button-6">Join Room</button>
+                    <button id="createRoom" class="button-6">Create Caller Room</button>
+                </div>
+                <div class="room-meta">
+                    <span id="roomCodeDisplay">No room joined</span>
+                    <span id="roomStatusDisplay">Waiting room</span>
+                </div>
+            </div>
             <div id="gameStatus">Game is ready - you can reset your board</div>
             <div id="playerCount">Players: 0/10</div>
             
@@ -267,68 +315,9 @@
         </div>
     </div>
     
-    <script src="firebase-config.js"></script>
-    <script type="module">
-        // Import Firebase SDKs
-        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-app.js";
-        import { getDatabase, ref, push, onChildAdded, remove, onValue, set, update, get, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.5.0/firebase-database.js";
-
-        const requiredFirebaseConfigKeys = [
-            "apiKey",
-            "authDomain",
-            "databaseURL",
-            "projectId",
-            "storageBucket",
-            "messagingSenderId",
-            "appId"
-        ];
-
-        function getFirebaseConfig() {
-            const config = window.BINGO_FIREBASE_CONFIG;
-            if (!config || typeof config !== "object") {
-                throw new Error("Missing Firebase config. Create firebase-config.js from firebase-config.example.js.");
-            }
-
-            const missingKeys = requiredFirebaseConfigKeys.filter((key) => !config[key]);
-            if (missingKeys.length) {
-                throw new Error(`Firebase config is missing: ${missingKeys.join(", ")}`);
-            }
-
-            return config;
-        }
-
-        function initializeFirebase() {
-            try {
-                const firebaseConfig = getFirebaseConfig();
-
-                const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-                const database = getDatabase(app);
-                const bingoRef = ref(database, 'bingo-game');
-
-                window.bingoRef = bingoRef;
-                window.database = database;
-                window.push = push;
-                window.ref = ref;
-                window.onChildAdded = onChildAdded;
-                window.remove = remove;
-                window.set = set;
-                window.update = update;
-                window.get = get;
-                window.onValue = onValue;
-                window.onDisconnect = onDisconnect;
-                window.serverTimestamp = serverTimestamp;
-
-                document.dispatchEvent(new Event("firebaseReady"));
-
-            } catch (error) {
-                console.error("Detailed Firebase Initialization Error:", error);
-                alert(`Firebase Initialization Failed: ${error.message}`);
-            }
-        }
-
-        initializeFirebase();
-    </script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="api.js"></script>
     <script src="bingo.js"></script>
     <script src="numberboard.js"></script>
     <script src="confetti.js"></script>
