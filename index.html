@@ -60,6 +60,11 @@
                         <span>Called Numbers</span>
                         <div id="calledNumbersList"></div>
                     </div>
+                    <div class="roll-display" id="rollDisplay">
+                        <span>Current Roll</span>
+                        <div id="rollNumber">--</div>
+                        <p id="rollStatus">Waiting for host</p>
+                    </div>
                     <button id="playerReset" class="button-6">Reset Board</button>
                 </div>
             </div>
@@ -84,17 +89,10 @@
                         </div>
                     </div>
                     <div class="board">
-                        <table id="numberBoard">
-                            <tr>
-                                <td></td><td></td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td></td><td></td><td></td>
-                            </tr>
-                            <tr>
-                                <td>6</td><td>7</td><td>8</td><td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td><td>15</td>
-                            </tr>
-                            <tr>
-                                <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
-                            </tr>
-                        </table>
+                        <div class="roll-control">
+                            <span class="caller-section-label">Number Roll</span>
+                            <button id="rollNumberBtn" class="button-6">Roll Number</button>
+                        </div>
                         <div class="caller-actions">
                             <button id="startGame" class="button-6">Start Game</button>
                             <button id="reset" class="button-6">Reset Game</button>

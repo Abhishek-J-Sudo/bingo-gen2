@@ -9,7 +9,8 @@ const state = {
     markedNumbers: [],
     calledNumbers: [],
     winners: [],
-    socket: null
+    socket: null,
+    rollTimer: null
 };
 
 localStorage.setItem("bingoSessionId", state.sessionId);
@@ -195,6 +196,52 @@ function updateCalledNumbersList() {
     list.innerHTML = state.calledNumbers.map((n) => `<div>${n}</div>`).join("");
 }
 
+function setRollDisplay(number, status, rolling = false) {
+    const rollDisplay = document.getElementById("rollDisplay");
+    const numberEl = document.getElementById("rollNumber");
+    const statusEl = document.getElementById("rollStatus");
+
+    if (rollDisplay) rollDisplay.classList.toggle("rolling", rolling);
+    if (numberEl) numberEl.textContent = number || "--";
+    if (statusEl) statusEl.textContent = status;
+}
+
+function updateRollDisplayFromState() {
+    const latestNumber = state.calledNumbers[state.calledNumbers.length - 1];
+    setRollDisplay(
+        latestNumber || "--",
+        latestNumber ? "Latest called number" : "Waiting for host"
+    );
+}
+
+function playNumberRoll({ sequence = [], durationMs = 1800 } = {}) {
+    if (!sequence.length) return;
+
+    if (state.rollTimer) {
+        clearInterval(state.rollTimer);
+        state.rollTimer = null;
+    }
+
+    let index = 0;
+    const intervalMs = Math.max(60, Math.floor(durationMs / sequence.length));
+
+    setRollDisplay(sequence[0], "Rolling...", true);
+    if (window.BingoCaller && typeof window.BingoCaller.setRollEnabled === "function") {
+        window.BingoCaller.setRollEnabled(false);
+    }
+
+    state.rollTimer = setInterval(() => {
+        index += 1;
+        const value = sequence[Math.min(index, sequence.length - 1)];
+        setRollDisplay(value, "Rolling...", true);
+
+        if (index >= sequence.length - 1) {
+            clearInterval(state.rollTimer);
+            state.rollTimer = null;
+        }
+    }, intervalMs);
+}
+
 function renderWinners() {
     const el = document.getElementById("winnersList");
     if (!el) return;
@@ -226,6 +273,7 @@ function applyRoomState(roomState) {
     updateGameStatusDisplay();
     updatePlayerCountDisplay(roomState.playerCount || 0);
     updateCalledNumbersList();
+    if (!state.rollTimer) updateRollDisplayFromState();
     renderWinners();
 
     // Notify caller module of host status and player list
@@ -245,17 +293,26 @@ function connectSocket(code) {
         state.socket.on("room-state", applyRoomState);
 
         state.socket.on("number-called", (payload) => {
+            if (state.rollTimer) {
+                clearInterval(state.rollTimer);
+                state.rollTimer = null;
+            }
+
             state.calledNumbers = payload.calledNumbers || state.calledNumbers;
+            setRollDisplay(payload.number || state.calledNumbers[state.calledNumbers.length - 1] || "--", "Called number");
             updateCalledNumbersList();
-            if (window.BingoCaller && typeof window.BingoCaller.markCalledNumbers === "function") {
-                window.BingoCaller.markCalledNumbers(state.calledNumbers);
+            if (window.BingoCaller && typeof window.BingoCaller.setRollEnabled === "function") {
+                window.BingoCaller.setRollEnabled(state.roomStatus === "active" && state.calledNumbers.length < 25);
             }
         });
+
+        state.socket.on("number-roll", playNumberRoll);
 
         state.socket.on("game-reset", (roomState) => {
             state.markedNumbers = [];
             applyRoomState(roomState);
             renderBoard(state.boardNumbers, []);
+            updateRollDisplayFromState();
             showAlert("The host has reset the game.", "Game Reset");
         });
 
@@ -369,6 +426,11 @@ async function restoreRoom() {
 async function leaveRoom() {
     if (!await showConfirm("Leave this room?", "Leave Room")) return;
 
+    if (state.rollTimer) {
+        clearInterval(state.rollTimer);
+        state.rollTimer = null;
+    }
+
     if (state.socket) {
         state.socket.disconnect();
         state.socket = null;
@@ -381,13 +443,14 @@ async function leaveRoom() {
     Object.assign(state, {
         roomCode: "", playerId: "", boardId: "", playerName: "",
         boardNumbers: [], markedNumbers: [], calledNumbers: [],
-        winners: [], roomStatus: "waiting"
+        winners: [], roomStatus: "waiting", rollTimer: null
     });
 
     const table = document.getElementById("bingoTable");
     if (table) table.innerHTML = "";
 
     updateCalledNumbersList();
+    updateRollDisplayFromState();
     renderWinners();
     updatePlayerNameDisplay();
     setRoomLabel();

@@ -53,7 +53,11 @@ Host controls include:
 - Winners list
 - Transfer Host dropdown
 - Reset Game button
-- The 1-25 number board for calling numbers
+- Roll Number button
+
+The host triggers each roll, but the server chooses the number from the
+remaining uncalled numbers. The roll animation is broadcast to every player so
+the draw is visible to the whole room.
 
 ## Host Transfer Flow
 
@@ -85,7 +89,7 @@ to re-enter any key.
 - Join the same room in another tab and confirm that player does not see the
   caller panel.
 - Start the game and confirm the board locks for all players.
-- Call a number and confirm it appears on all boards.
+- Roll a number and confirm the roll animation and final called number appear
+  for all players.
 - Transfer host to the other tab's player and confirm the caller panels swap.
 - Refresh the host's page and confirm caller controls return automatically.
-

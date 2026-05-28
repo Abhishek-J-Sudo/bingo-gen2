@@ -272,15 +272,15 @@ Response:
 
 ### `POST /api/rooms/:code/call-number`
 
-Caller-only route. Records a called number and broadcasts it to everyone in the
-room.
+Host-only route. The host does not choose a number. The server picks one random
+remaining uncalled number, broadcasts a roll sequence to the room, then records
+and broadcasts the final called number.
 
 Request:
 
 ```json
 {
-  "callerKey": "private caller key",
-  "number": 17
+  "sessionId": "browser-session-id"
 }
 ```
 

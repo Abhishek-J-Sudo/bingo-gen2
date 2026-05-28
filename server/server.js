@@ -15,6 +15,8 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = path.join(__dirname, "..");
+const ROLL_DURATION_MS = 1800;
+const rollingRooms = new Set();
 
 const PLAYER_NAMES = [
   "Excel Ninja", "Deadline Daku", "Chill Operator", "Jugaadu Analyst",
@@ -57,6 +59,22 @@ function generateNumbers() {
     [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
   }
   return numbers;
+}
+
+function pickRandomItem(items) {
+  return items[crypto.randomInt(items.length)];
+}
+
+function buildRollSequence(remainingNumbers, finalNumber) {
+  const sequence = [];
+  const pool = remainingNumbers.length ? remainingNumbers : [finalNumber];
+
+  for (let i = 0; i < 14; i++) {
+    sequence.push(pickRandomItem(pool));
+  }
+
+  sequence.push(finalNumber);
+  return sequence;
 }
 
 function normalizeCode(code) {
@@ -278,6 +296,10 @@ app.post("/api/rooms/:code/stop", asyncHandler(async (req, res) => {
 
   assertHost(room, req.body.sessionId);
 
+  if (rollingRooms.has(room.id)) {
+    return res.status(409).json({ error: "Wait for the current roll to finish." });
+  }
+
   const updated = (await db.query(
     "update rooms set status = 'waiting', updated_at = now() where id = $1 returning *",
     [room.id]
@@ -289,24 +311,63 @@ app.post("/api/rooms/:code/stop", asyncHandler(async (req, res) => {
 }));
 
 app.post("/api/rooms/:code/call-number", asyncHandler(async (req, res) => {
-  const room   = await getRoomByCode(req.params.code);
-  const number = Number(req.body.number);
+  const room = await getRoomByCode(req.params.code);
 
   if (!room) return res.status(404).json({ error: "Room not found." });
-  if (!Number.isInteger(number) || number < 1 || number > 25) {
-    return res.status(400).json({ error: "Number must be between 1 and 25." });
+  if (room.status !== "active") {
+    return res.status(409).json({ error: "Start the game first." });
   }
 
   assertHost(room, req.body.sessionId);
 
-  await db.query(
-    "insert into called_numbers (room_id, number) values ($1, $2) on conflict do nothing",
-    [room.id, number]
-  );
+  if (rollingRooms.has(room.id)) {
+    return res.status(409).json({ error: "A roll is already in progress." });
+  }
 
-  const state = await emitRoomState(room);
-  io.to(room.code).emit("number-called", { number, calledNumbers: state.calledNumbers });
-  res.json(state);
+  rollingRooms.add(room.id);
+
+  let calledNumbers;
+  try {
+    calledNumbers = await getCalledNumbers(room.id);
+  } catch (error) {
+    rollingRooms.delete(room.id);
+    throw error;
+  }
+
+  const called = new Set(calledNumbers);
+  const remainingNumbers = Array.from({ length: 25 }, (_, i) => i + 1).filter((n) => !called.has(n));
+
+  if (remainingNumbers.length === 0) {
+    rollingRooms.delete(room.id);
+    return res.status(409).json({ error: "All numbers have already been called." });
+  }
+
+  const number = pickRandomItem(remainingNumbers);
+  const sequence = buildRollSequence(remainingNumbers, number);
+
+  io.to(room.code).emit("number-roll", {
+    sequence,
+    durationMs: ROLL_DURATION_MS
+  });
+
+  setTimeout(async () => {
+    try {
+      await db.query(
+        "insert into called_numbers (room_id, number) values ($1, $2) on conflict do nothing",
+        [room.id, number]
+      );
+
+      const state = await emitRoomState(room);
+      io.to(room.code).emit("number-called", { number, calledNumbers: state.calledNumbers });
+    } catch (error) {
+      console.error("Failed to finish number roll:", error);
+      io.to(room.code).emit("error", { error: "The number roll failed." });
+    } finally {
+      rollingRooms.delete(room.id);
+    }
+  }, ROLL_DURATION_MS);
+
+  res.json({ rolling: true, durationMs: ROLL_DURATION_MS });
 }));
 
 app.post("/api/rooms/:code/reset", asyncHandler(async (req, res) => {
@@ -314,6 +375,10 @@ app.post("/api/rooms/:code/reset", asyncHandler(async (req, res) => {
   if (!room) return res.status(404).json({ error: "Room not found." });
 
   assertHost(room, req.body.sessionId);
+
+  if (rollingRooms.has(room.id)) {
+    return res.status(409).json({ error: "Wait for the current roll to finish." });
+  }
 
   await db.withTransaction(async (client) => {
     await client.query("delete from winners where room_id = $1", [room.id]);

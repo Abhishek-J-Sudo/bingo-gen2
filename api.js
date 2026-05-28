@@ -47,10 +47,10 @@ window.BingoApi = {
         });
     },
 
-    callNumber(code, sessionId, number) {
+    callNumber(code, sessionId) {
         return this.request(`/api/rooms/${encodeURIComponent(code)}/call-number`, {
             method: "POST",
-            body: { sessionId, number }
+            body: { sessionId }
         });
     },
 
