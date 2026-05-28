@@ -575,7 +575,13 @@
             color: var(--white) !important;
             border-color: var(--red) !important;
             box-shadow: none !important;
-            margin-top: 8px;
+        }
+
+        .caller-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
         }
 
         /* ══════════════════════════════
@@ -609,7 +615,7 @@
                 gap: 16px;
             }
 
-            #reset { margin-top: 0; }
+            .caller-actions { grid-template-columns: 1fr; }
 
             td { height: 52px; font-size: 20px; }
         }
@@ -706,7 +712,6 @@
                 <div class="caller-inner">
                     <div id="callerControls">
                         <span class="caller-section-label">Game Control</span>
-                        <button id="startGame" class="button-6">Start Game</button>
                         <div>
                             <h3>Winners</h3>
                             <div id="winnersList" class="winners-list">No winners yet</div>
@@ -720,7 +725,6 @@
                                 <button id="transferHostBtn" class="button-6">Hand Off</button>
                             </div>
                         </div>
-                        <button id="reset" class="button-6">Reset Game</button>
                     </div>
                     <div class="board">
                         <table id="numberBoard">
@@ -734,6 +738,10 @@
                                 <td>16</td><td>17</td><td>18</td><td>19</td><td>20</td><td>21</td><td>22</td><td>23</td><td>24</td><td>25</td>
                             </tr>
                         </table>
+                        <div class="caller-actions">
+                            <button id="startGame" class="button-6">Start Game</button>
+                            <button id="reset" class="button-6">Reset Game</button>
+                        </div>
                     </div>
                 </div>
             </div>

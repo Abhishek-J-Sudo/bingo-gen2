@@ -9,7 +9,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function setHostStatus(isHost, players = []) {
         const callerContainer = document.querySelector(".caller-container");
+        const callerInner     = document.querySelector(".caller-inner");
+
         if (callerContainer) callerContainer.style.display = isHost ? "block" : "none";
+        if (callerInner) callerInner.style.display = isHost ? "grid" : "none";
 
         if (isHost) {
             populateTransferSelect(players);
