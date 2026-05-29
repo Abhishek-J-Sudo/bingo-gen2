@@ -398,6 +398,18 @@ function connectSocket(code) {
         state.socket.on("error", (payload) => {
             if (payload && payload.error) showAlert(payload.error, "Room Error");
         });
+
+        // Re-join socket room and resync board on reconnect
+        state.socket.io.on("reconnect", async () => {
+            state.socket.emit("join-room", { code, sessionId: state.sessionId });
+            if (!state.boardId) return;
+            try {
+                const data = await BingoApi.joinRoom(code, state.playerName, state.sessionId);
+                state.boardNumbers  = data.numbers;
+                state.markedNumbers = data.markedNumbers || [];
+                renderBoard(state.boardNumbers, state.markedNumbers);
+            } catch (_) {}
+        });
     }
 
     state.socket.emit("join-room", { code, sessionId: state.sessionId });
