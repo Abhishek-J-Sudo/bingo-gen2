@@ -17,6 +17,8 @@ const PORT = process.env.PORT || 3000;
 const ROOT_DIR = path.join(__dirname, "..");
 const ROLL_DURATION_MS = 1800;
 const rollingRooms = new Set();
+const socketRooms = new Map();         // socket.id → { code, sessionId }
+const hostDisconnectTimers = new Map(); // `${sessionId}:${code}` → timer
 
 const PLAYER_NAMES = [
   "Excel Ninja", "Deadline Daku", "Chill Operator", "Jugaadu Analyst",
@@ -405,10 +407,10 @@ app.post("/api/rooms/:code/transfer-host", asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "newHostPlayerId is required." });
   }
 
-  const playerResult = await db.query(
-    "select session_id from players where id = $1 and room_id = $2",
-    [newHostPlayerId, room.id]
-  );
+  const [playerResult, fromHostResult] = await Promise.all([
+    db.query("select session_id from players where id = $1 and room_id = $2", [newHostPlayerId, room.id]),
+    db.query("select name from players where room_id = $1 and session_id = $2", [room.id, room.host_session_id])
+  ]);
 
   if (playerResult.rowCount === 0) {
     return res.status(404).json({ error: "Player not found in this room." });
@@ -421,7 +423,8 @@ app.post("/api/rooms/:code/transfer-host", asyncHandler(async (req, res) => {
 
   const updatedRoom = await getRoomByCode(room.code);
   const state = await emitRoomState(updatedRoom);
-  io.to(room.code).emit("host-transferred", state);
+  const fromName = fromHostResult.rows[0]?.name || null;
+  io.to(room.code).emit("host-transferred", { ...state, fromName });
   res.json(state);
 }));
 
@@ -518,14 +521,70 @@ app.post("/api/boards/:boardId/bingo", asyncHandler(async (req, res) => {
 // ─── Socket ───────────────────────────────────────────────
 
 io.on("connection", (socket) => {
-  socket.on("join-room", async ({ code }) => {
+  socket.on("join-room", async ({ code, sessionId }) => {
     const room = await getRoomByCode(code);
     if (!room) {
       socket.emit("error", { error: "Room not found." });
       return;
     }
+
+    const normSessionId = normalizeSessionId(sessionId);
+    const timerKey = `${normSessionId}:${room.code}`;
+
+    // If the host reconnected before the grace period expired, cancel transfer
+    if (hostDisconnectTimers.has(timerKey)) {
+      clearTimeout(hostDisconnectTimers.get(timerKey));
+      hostDisconnectTimers.delete(timerKey);
+    }
+
+    socketRooms.set(socket.id, { code: room.code, sessionId: normSessionId });
     socket.join(room.code);
     socket.emit("room-state", await getRoomState(room));
+  });
+
+  socket.on("disconnect", async () => {
+    const info = socketRooms.get(socket.id);
+    socketRooms.delete(socket.id);
+    if (!info) return;
+
+    // Only act if no other socket for the same session is still in the room
+    const hasOtherSocket = [...socketRooms.values()].some(
+      (s) => s.code === info.code && s.sessionId === info.sessionId
+    );
+    if (hasOtherSocket) return;
+
+    let room;
+    try { room = await getRoomByCode(info.code); } catch (_) { return; }
+    if (!room || room.host_session_id !== info.sessionId) return;
+
+    // Grace period: give the host 8 s to reconnect before transferring
+    const timerKey = `${info.sessionId}:${info.code}`;
+    const timer = setTimeout(async () => {
+      hostDisconnectTimers.delete(timerKey);
+      try {
+        const currentRoom = await getRoomByCode(info.code);
+        if (!currentRoom || currentRoom.host_session_id !== info.sessionId) return;
+
+        const next = await db.query(
+          "select session_id from players where room_id = $1 and session_id != $2 order by created_at asc limit 1",
+          [currentRoom.id, info.sessionId]
+        );
+        if (next.rowCount === 0) return; // no one else to give it to
+
+        await db.query(
+          "update rooms set host_session_id = $1, updated_at = now() where id = $2",
+          [next.rows[0].session_id, currentRoom.id]
+        );
+
+        const updatedRoom = await getRoomByCode(info.code);
+        const state = await emitRoomState(updatedRoom);
+        io.to(info.code).emit("host-transferred", state);
+      } catch (err) {
+        console.error("Auto host transfer failed:", err);
+      }
+    }, 8000);
+
+    hostDisconnectTimers.set(timerKey, timer);
   });
 });
 

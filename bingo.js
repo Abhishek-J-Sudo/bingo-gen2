@@ -378,7 +378,16 @@ function connectSocket(code) {
             renderBoard(state.boardNumbers, []);
         });
 
-        state.socket.on("host-transferred", applyRoomState);
+        state.socket.on("host-transferred", (roomState) => {
+            const becameHost = roomState.hostPlayerId === state.playerId;
+            applyRoomState(roomState);
+            if (becameHost) {
+                const msg = roomState.fromName
+                    ? `${roomState.fromName} handed off the host role to you.`
+                    : "The previous host left. You are now the host!";
+                showAlert(msg, "You're the Host");
+            }
+        });
         state.socket.on("winner-added", (roomState) => {
             applyRoomState(roomState);
             celebrateNewWinners(roomState.winners || []);
@@ -389,7 +398,7 @@ function connectSocket(code) {
         });
     }
 
-    state.socket.emit("join-room", { code });
+    state.socket.emit("join-room", { code, sessionId: state.sessionId });
 }
 
 // -----------------------------------------------------------------------------
