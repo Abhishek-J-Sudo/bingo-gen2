@@ -77,10 +77,11 @@ input {
 }
 
 .lobby-header h1 {
-  font-size: clamp(38px, 9vw, 54px);
-  font-weight: 700;
+  font-family: 'Bangers', system-ui, sans-serif;
+  font-size: clamp(48px, 11vw, 68px);
+  font-weight: 400;
   line-height: 0.88;
-  letter-spacing: -2px;
+  letter-spacing: 2px;
   text-transform: uppercase;
 }
 
@@ -215,9 +216,10 @@ input {
 }
 
 .header-title h1 {
-  font-size: clamp(18px, 2.8vw, 26px);
-  font-weight: 700;
-  letter-spacing: -0.5px;
+  font-family: 'Bangers', system-ui, sans-serif;
+  font-size: clamp(22px, 3.2vw, 32px);
+  font-weight: 400;
+  letter-spacing: 2px;
   text-transform: uppercase;
   line-height: 1;
 }
@@ -415,8 +417,10 @@ input {
 
 th {
   height: 36px;
-  font-size: 20px;
-  font-weight: 700;
+  font-family: 'Bangers', system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--black);
 }
@@ -743,8 +747,10 @@ td.disabled {
   display: grid;
   place-items: center;
   min-height: 88px;
-  font-size: 52px;
-  font-weight: 700;
+  font-family: 'Bangers', system-ui, sans-serif;
+  font-size: 64px;
+  font-weight: 400;
+  letter-spacing: 3px;
   line-height: 1;
   position: relative;
   z-index: 1;
