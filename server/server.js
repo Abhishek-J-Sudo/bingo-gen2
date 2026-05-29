@@ -252,6 +252,16 @@ app.post("/api/rooms/:code/join", asyncHandler(async (req, res) => {
       return { playerId: row.id, playerName: name, boardId: row.board_id, numbers: row.numbers, markedNumbers: row.marked_numbers || [] };
     }
 
+    const countResult = await client.query(
+      "select count(*)::int as count from players where room_id = $1",
+      [room.id]
+    );
+    if (countResult.rows[0].count >= 10) {
+      const err = new Error("This room is full (10 players max).");
+      err.status = 409;
+      throw err;
+    }
+
     const takenNames = new Set(
       (await client.query("select name from players where room_id = $1", [room.id])).rows.map((r) => r.name)
     );
