@@ -214,6 +214,8 @@ async function resetPlayerBoard() {
 }
 
 async function checkBingo() {
+    if (state.winners.some((w) => w.playerId === state.playerId)) return;
+
     const marked = new Set(state.markedNumbers);
 
     const isMarkedAt = (r, c) => marked.has(state.boardNumbers[r * 5 + c]);

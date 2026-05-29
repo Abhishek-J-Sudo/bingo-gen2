@@ -507,12 +507,18 @@ app.post("/api/boards/:boardId/bingo", asyncHandler(async (req, res) => {
     return res.status(409).json({ error: "Bingo is not valid yet." });
   }
 
-  await db.query(
-    "insert into winners (room_id, player_id) values ($1, $2) on conflict do nothing",
+  const insertResult = await db.query(
+    "insert into winners (room_id, player_id) values ($1, $2) on conflict do nothing returning id",
     [board.room_id, board.player_id]
   );
 
-  const room  = await getRoomByCode(board.code);
+  const room = await getRoomByCode(board.code);
+
+  if (insertResult.rowCount === 0) {
+    // Player already recorded as winner — return current state, no new event
+    return res.json(await getRoomState(room));
+  }
+
   const state = await emitRoomState(room);
   io.to(room.code).emit("winner-added", state);
   res.json(state);
