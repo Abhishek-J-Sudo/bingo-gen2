@@ -371,6 +371,16 @@ app.post("/api/rooms/:code/call-number", asyncHandler(async (req, res) => {
 
       const state = await emitRoomState(room);
       io.to(room.code).emit("number-called", { number, calledNumbers: state.calledNumbers });
+
+      if (state.calledNumbers.length === 25 && state.winners.length === 0) {
+        await db.query(
+          "update rooms set status = 'waiting', updated_at = now() where id = $1",
+          [room.id]
+        );
+        const finalRoom = await getRoomByCode(room.code);
+        const finalState = await emitRoomState(finalRoom);
+        io.to(room.code).emit("game-over", finalState);
+      }
     } catch (error) {
       console.error("Failed to finish number roll:", error);
       io.to(room.code).emit("error", { error: "The number roll failed." });

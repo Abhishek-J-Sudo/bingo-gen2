@@ -408,6 +408,11 @@ function connectSocket(code) {
             celebrateNewWinners(roomState.winners || []);
         });
 
+        state.socket.on("game-over", (roomState) => {
+            applyRoomState(roomState);
+            showAlert("All 25 numbers have been called with no winner. The game has ended.", "Game Over");
+        });
+
         state.socket.on("error", (payload) => {
             if (payload && payload.error) showAlert(payload.error, "Room Error");
         });
