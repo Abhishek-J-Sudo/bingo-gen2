@@ -24,9 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function setRollEnabled(enabled) {
-        if (!rollBtn) return;
-        rollBtn.disabled = !enabled;
-        rollBtn.classList.toggle("rolling", !enabled);
+        if (rollBtn) {
+            rollBtn.disabled = !enabled;
+            rollBtn.classList.toggle("rolling", !enabled);
+        }
+        const rollFab = document.getElementById("rollFab");
+        if (rollFab) rollFab.disabled = !enabled;
     }
 
     function isMobile() {
@@ -37,16 +40,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const callerContainer = document.querySelector(".caller-container");
         const callerInner     = document.querySelector(".caller-inner");
         const fab             = document.getElementById("callerFab");
+        const rollFab         = document.getElementById("rollFab");
 
         if (isMobile()) {
             if (callerContainer) callerContainer.style.display = "block";
             if (callerInner) callerInner.style.display = "flex";
             if (fab) fab.style.display = isHost ? "flex" : "none";
+            if (rollFab) rollFab.style.display = isHost ? "flex" : "none";
             if (!isHost) closeSheet();
         } else {
             if (callerContainer) callerContainer.style.display = isHost ? "block" : "none";
             if (callerInner) callerInner.style.display = isHost ? "flex" : "none";
             if (fab) fab.style.display = "none";
+            if (rollFab) rollFab.style.display = "none";
         }
 
         if (isHost) populateTransferSelect(players);
@@ -66,6 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (backdrop) backdrop.classList.remove("open");
     }
 
+    document.getElementById("rollFab")?.addEventListener("click", rollNumber);
     document.getElementById("callerFab")?.addEventListener("click", openSheet);
     document.getElementById("callerSheetClose")?.addEventListener("click", closeSheet);
     document.getElementById("callerBackdrop")?.addEventListener("click", closeSheet);

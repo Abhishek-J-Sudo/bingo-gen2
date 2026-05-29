@@ -929,6 +929,7 @@ td.disabled {
   display: none;
 }
 
+.roll-fab,
 .caller-fab {
   display: none;
 }
@@ -1301,24 +1302,39 @@ td.disabled {
     padding: 4px;
   }
 
+  .roll-fab,
   .caller-fab {
-    display: flex;
     align-items: center;
     justify-content: center;
     position: fixed;
     right: 0;
-    top: 50%;
-    transform: translateY(-50%);
     z-index: 140;
     width: 40px;
     height: 40px;
     padding: 0;
-    background: var(--black);
-    color: var(--white);
     border: var(--b3);
     border-right: none;
     box-shadow: -4px 4px 0 #000;
     font-size: 0;
+  }
+
+  .roll-fab {
+    top: calc(50% - 48px);
+    background: var(--yellow);
+    color: var(--black);
+  }
+
+  .roll-fab:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: -2px 2px 0 #000 !important;
+  }
+
+  .caller-fab {
+    top: calc(50% + 8px);
+    background: var(--black);
+    color: var(--white);
   }
 
   td {
