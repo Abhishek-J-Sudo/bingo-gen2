@@ -238,6 +238,38 @@ input {
   flex-wrap: wrap;
 }
 
+.room-code-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: var(--b3);
+  background: var(--black);
+  color: var(--white);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 #000;
+}
+
+.copy-btn.copied {
+  background: var(--teal);
+  border-color: var(--teal);
+}
+
 #roomCodeDisplay {
   padding: 6px 12px;
   border: var(--b3);
@@ -891,15 +923,30 @@ td.disabled {
   }
 
   .app-header {
-    grid-template-columns: 1fr;
-    gap: 10px;
-    padding: 16px 20px;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 10px 12px;
+    padding: 14px 20px;
+  }
+
+  .header-title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .header-title h1 {
+    font-size: clamp(20px, 6vw, 26px);
+  }
+
+  .header-right {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
   }
 
   .header-meta {
-    justify-content: flex-start;
-  }
-  .header-right {
+    grid-column: 1 / -1;
+    grid-row: 2;
     justify-content: flex-start;
   }
 

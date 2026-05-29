@@ -536,6 +536,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("playerReset")?.addEventListener("click", resetPlayerBoard);
     document.getElementById("leaveRoom")?.addEventListener("click", leaveRoom);
 
+    document.getElementById("copyRoomCode")?.addEventListener("click", () => {
+        if (!state.roomCode) return;
+        navigator.clipboard.writeText(state.roomCode).then(() => {
+            const btn = document.getElementById("copyRoomCode");
+            btn.classList.add("copied");
+            setTimeout(() => btn.classList.remove("copied"), 1500);
+        });
+    });
+
     ["roomCodeInput", "playerNameInput"].forEach((id) => {
         document.getElementById(id)?.addEventListener("keypress", (e) => {
             if (e.key === "Enter") joinRoom();
