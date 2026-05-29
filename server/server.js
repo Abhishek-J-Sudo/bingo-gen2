@@ -463,6 +463,14 @@ app.post("/api/boards/:boardId/reset", asyncHandler(async (req, res) => {
   const board = boardResult.rows[0];
   if (board.status === "active") return res.status(409).json({ error: "Game is active. Board cannot be reset now." });
 
+  const calledCount = await db.query(
+    "select count(*)::int as count from called_numbers where room_id = $1",
+    [board.room_id]
+  );
+  if (calledCount.rows[0].count > 0) {
+    return res.status(409).json({ error: "A round is paused. Ask the host to Reset Game before getting a new board." });
+  }
+
   const numbers = generateNumbers();
   const result = await db.query(
     "update boards set numbers = $1, marked_numbers = '[]'::jsonb, updated_at = now() where id = $2 returning *",

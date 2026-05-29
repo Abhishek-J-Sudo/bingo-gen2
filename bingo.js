@@ -120,11 +120,13 @@ function renderPlayers(players = [], hostPlayerId = null) {
 function updateGameStatusDisplay() {
     const statusEl    = document.getElementById("gameStatus");
     const playerReset = document.getElementById("playerReset");
-    const locked      = state.roomStatus === "active";
+    const active      = state.roomStatus === "active";
+    const paused      = !active && state.calledNumbers.length > 0;
+    const locked      = active || paused;
 
     if (statusEl) {
-        statusEl.textContent    = locked ? "In Progress" : "Waiting";
-        statusEl.dataset.status = locked ? "active"      : "waiting";
+        statusEl.textContent    = active ? "In Progress" : paused ? "Paused" : "Waiting";
+        statusEl.dataset.status = active ? "active"      : paused ? "paused" : "waiting";
     }
 
     if (playerReset) {
