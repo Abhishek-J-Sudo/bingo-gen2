@@ -52,9 +52,12 @@ input {
   background:
     radial-gradient(circle, rgba(255, 255, 255, 0.09) 1px, transparent 1px),
     radial-gradient(ellipse at 10% 90%, rgba(255, 229, 0, 0.07) 0%, transparent 55%),
-    radial-gradient(ellipse at 90% 10%, rgba(13, 211, 197, 0.06) 0%, transparent 45%),
-    var(--bg);
-  background-size: 20px 20px, 100% 100%, 100% 100%, 100% 100%;
+    radial-gradient(ellipse at 90% 10%, rgba(13, 211, 197, 0.06) 0%, transparent 45%), var(--bg);
+  background-size:
+    20px 20px,
+    100% 100%,
+    100% 100%,
+    100% 100%;
 }
 
 #lobby-view::after {
@@ -62,7 +65,11 @@ input {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(500px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 229, 0, 0.07), transparent 70%);
+  background: radial-gradient(
+    500px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 229, 0, 0.07),
+    transparent 70%
+  );
   transition: background 0.08s ease;
 }
 
@@ -581,21 +588,23 @@ td.disabled {
 }
 
 @keyframes cell-deal {
-  0%   {
+  0% {
     opacity: 0;
     transform: translateY(-60px) scaleY(0.6);
     animation-timing-function: ease-in;
   }
-  55%  {
+  55% {
     opacity: 1;
     transform: translateY(4px) scaleX(1.1) scaleY(0.8);
     animation-timing-function: ease-out;
   }
-  75%  {
+  75% {
     transform: translateY(-3px) scaleX(0.97) scaleY(1.06);
     animation-timing-function: ease-in-out;
   }
-  100% { transform: translateY(0) scaleX(1) scaleY(1); }
+  100% {
+    transform: translateY(0) scaleX(1) scaleY(1);
+  }
 }
 
 .cell-deal {
@@ -1207,6 +1216,22 @@ td.disabled {
     gap: 20px;
   }
 
+  #playerName {
+    order: 1;
+  }
+  .roll-display {
+    order: 2;
+  }
+  .called-numbers {
+    order: 3;
+  }
+  #playerReset {
+    order: 4;
+  }
+  .reset-hint {
+    order: 5;
+  }
+
   .caller-inner {
     grid-template-columns: 1fr;
     padding: 16px 20px 24px;
@@ -1297,7 +1322,8 @@ td.disabled {
   }
 
   td {
-    height: 52px;
+    height: auto;
+    aspect-ratio: 1;
     font-size: 20px;
   }
 }
@@ -1329,10 +1355,11 @@ td.disabled {
   }
 
   #bingoTable {
-    border-spacing: 3px;
+    height: 300px;
   }
   td {
-    height: 42px;
+    height: auto;
+    aspect-ratio: 1;
     font-size: 17px;
   }
   th {
