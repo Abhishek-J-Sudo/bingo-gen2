@@ -10,7 +10,8 @@ const state = {
     calledNumbers: [],
     winners: [],
     socket: null,
-    rollTimer: null
+    rollTimer: null,
+    celebratedWinnerCount: 0
 };
 
 localStorage.setItem("bingoSessionId", state.sessionId);
@@ -43,7 +44,7 @@ function showWarning(message, title) {
         : showAlert(message, title);
 }
 
-// ─── View switching ───────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 function showLobbyView() {
     document.getElementById("lobby-view").classList.add("active");
@@ -55,16 +56,16 @@ function showGameView() {
     document.getElementById("game-view").classList.add("active");
 }
 
-// ─── Display helpers ──────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 function setRoomLabel() {
     const el = document.getElementById("roomCodeDisplay");
-    if (el) el.textContent = state.roomCode || "—";
+    if (el) el.textContent = state.roomCode || "-";
 }
 
 function updatePlayerNameDisplay() {
     const el = document.getElementById("playerName");
-    if (el) el.textContent = state.playerName ? `Name: ${state.playerName}` : "Name: —";
+    if (el) el.textContent = state.playerName ? `Name: ${state.playerName}` : "Name: -";
 }
 
 function updatePlayerCountDisplay(playerCount = 0) {
@@ -133,7 +134,7 @@ function updateGameStatusDisplay() {
     }
 }
 
-// ─── Board rendering ──────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 function renderBoard(numbers, markedNumbers = []) {
     const table = document.getElementById("bingoTable");
@@ -228,7 +229,7 @@ async function checkBingo() {
     try {
         const roomState = await BingoApi.claimBingo(state.boardId, state.sessionId);
         applyRoomState(roomState);
-        if (typeof launchConfetti === "function") launchConfetti();
+        celebrateNewWinners(roomState.winners || []);
     } catch (error) {
         await showAlert(error.message, "Bingo Not Ready");
     }
@@ -287,20 +288,25 @@ function playNumberRoll({ sequence = [], durationMs = 1800 } = {}) {
 }
 
 function renderWinners() {
-    const el = document.getElementById("winnersList");
-    if (!el) return;
+    const banner = document.getElementById("winnerBanner");
+    const nameEl = document.getElementById("winnerName");
+    if (!banner || !nameEl) return;
 
     if (!state.winners.length) {
-        el.textContent = "No winners yet";
+        banner.classList.remove("active");
+        nameEl.textContent = "No winner yet";
         return;
     }
 
-    el.innerHTML = "";
-    state.winners.forEach((winner) => {
-        const div = document.createElement("div");
-        div.textContent = `${winner.name} — ${new Date(winner.wonAt).toLocaleTimeString()}`;
-        el.appendChild(div);
-    });
+    banner.classList.add("active");
+    nameEl.textContent = state.winners[0].name;
+}
+
+function celebrateNewWinners(winners = []) {
+    if (winners.length <= state.celebratedWinnerCount) return;
+
+    state.celebratedWinnerCount = winners.length;
+    if (typeof launchConfetti === "function") launchConfetti();
 }
 
 function applyRoomState(roomState) {
@@ -327,7 +333,7 @@ function applyRoomState(roomState) {
     }
 }
 
-// ─── Socket ───────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 function connectSocket(code) {
     if (!code || !window.io) return;
@@ -355,6 +361,7 @@ function connectSocket(code) {
 
         state.socket.on("game-reset", (roomState) => {
             state.markedNumbers = [];
+            state.celebratedWinnerCount = 0;
             applyRoomState(roomState);
             renderBoard(state.boardNumbers, []);
             updateRollDisplayFromState();
@@ -362,7 +369,10 @@ function connectSocket(code) {
         });
 
         state.socket.on("host-transferred", applyRoomState);
-        state.socket.on("winner-added", applyRoomState);
+        state.socket.on("winner-added", (roomState) => {
+            applyRoomState(roomState);
+            celebrateNewWinners(roomState.winners || []);
+        });
 
         state.socket.on("error", (payload) => {
             if (payload && payload.error) showAlert(payload.error, "Room Error");
@@ -372,11 +382,11 @@ function connectSocket(code) {
     state.socket.emit("join-room", { code });
 }
 
-// ─── Room actions ─────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 async function createRoom() {
     try {
-        // Create room — sessionId is the host identity
+        // Create room - sessionId is the host identity
         const room = await BingoApi.createRoom(state.sessionId);
 
         // Auto-join as player so host also gets a board
@@ -488,7 +498,7 @@ async function leaveRoom() {
     Object.assign(state, {
         roomCode: "", playerId: "", boardId: "", playerName: "",
         boardNumbers: [], markedNumbers: [], calledNumbers: [],
-        winners: [], roomStatus: "waiting", rollTimer: null
+        winners: [], roomStatus: "waiting", rollTimer: null, celebratedWinnerCount: 0
     });
 
     const table = document.getElementById("bingoTable");
@@ -508,7 +518,7 @@ async function leaveRoom() {
     showLobbyView();
 }
 
-// ─── Init ─────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("createRoom")?.addEventListener("click", createRoom);
@@ -526,3 +536,4 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.BingoApp = { state, applyRoomState, connectSocket, updateCalledNumbersList };
+

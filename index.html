@@ -54,7 +54,15 @@
 
             <div class="game-container">
                 <div class="bingo-table-wrap">
-                    <table id="bingoTable"></table>
+                    <div class="board-column">
+                        <div class="board-frame">
+                            <table id="bingoTable"></table>
+                        </div>
+                        <div class="winner-banner" id="winnerBanner">
+                            <span>Winner</span>
+                            <strong id="winnerName">No winner yet</strong>
+                        </div>
+                    </div>
                 </div>
                 <div class="column2">
                     <div id="playerName">Name: &mdash;</div>
@@ -76,10 +84,6 @@
                 <div class="caller-inner">
                     <div id="callerControls">
                         <span class="caller-section-label">Game Control</span>
-                        <div>
-                            <h3>Winners</h3>
-                            <div id="winnersList" class="winners-list">No winners yet</div>
-                        </div>
                         <div id="transferHostSection">
                             <h3>Transfer Host</h3>
                             <div class="transfer-row">
