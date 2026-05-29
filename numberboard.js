@@ -107,7 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function resetGame() {
         const appState = window.BingoApp ? window.BingoApp.state : {};
-        if (!await showConfirm("Reset the game? This clears all called numbers and winners.", "Reset Game")) return;
+        if (!await showConfirm("Reset the game? This clears all called numbers, winners, and everyone's board.", "Reset Game")) return;
 
         try {
             const roomState = await BingoApi.resetRoom(appState.roomCode, appState.sessionId);
