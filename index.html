@@ -88,26 +88,25 @@
         <!-- Caller section - shown automatically when you are the host -->
         <div class="caller-container">
           <div class="caller-inner">
-            <div id="callerControls">
-              <span class="caller-section-label">Game Control</span>
-              <div id="transferHostSection">
-                <h3>Transfer Host</h3>
-                <div class="transfer-row">
-                  <select id="transferHostSelect" class="transfer-select">
-                    <option value="">Hand off to...</option>
-                  </select>
-                  <button id="transferHostBtn" class="button-6">Hand Off</button>
+            <span class="caller-section-label caller-headline">Game Control</span>
+            <div class="caller-row">
+              <div id="callerControls">
+                <div id="transferHostSection">
+                  <h3>Transfer Host</h3>
+                  <div class="transfer-row">
+                    <select id="transferHostSelect" class="transfer-select">
+                      <option value="">Hand off to...</option>
+                    </select>
+                    <button id="transferHostBtn" class="button-6">Hand Off</button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="board">
-              <div class="roll-control">
-                <span class="caller-section-label">Number Roll</span>
-                <button id="rollNumberBtn" class="button-6">Roll Number</button>
-              </div>
               <div class="caller-actions">
-                <button id="startGame" class="button-6">Start Game</button>
-                <button id="reset" class="button-6">Reset Game</button>
+                <button id="rollNumberBtn" class="button-6">Roll Number</button>
+                <div class="caller-game-btns">
+                  <button id="startGame" class="button-6">Start Game</button>
+                  <button id="reset" class="button-6">Reset Game</button>
+                </div>
               </div>
             </div>
           </div>

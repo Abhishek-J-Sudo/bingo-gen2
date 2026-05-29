@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const callerInner     = document.querySelector(".caller-inner");
 
         if (callerContainer) callerContainer.style.display = isHost ? "block" : "none";
-        if (callerInner) callerInner.style.display = isHost ? "grid" : "none";
+        if (callerInner) callerInner.style.display = isHost ? "flex" : "none";
 
         if (isHost) populateTransferSelect(players);
     }

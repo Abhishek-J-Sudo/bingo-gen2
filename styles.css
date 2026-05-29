@@ -706,16 +706,28 @@ td.disabled {
 
 .caller-inner {
   display: none;
-  grid-template-columns: 260px minmax(300px, 1fr);
-  gap: 16px;
-  align-items: start;
-  padding: 24px 28px;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px;
+}
+
+.caller-headline {
+  text-align: center;
+}
+
+.caller-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  width: 100%;
+  align-items: center;
 }
 
 #callerControls {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .caller-section-label {
@@ -750,25 +762,16 @@ td.disabled {
   margin-bottom: 4px;
 }
 
-.roll-control {
-  min-height: 154px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 12px;
-  padding: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.03);
-}
-
 #rollNumberBtn {
-  width: 100%;
-  height: 86px;
+  width: 160px;
+  height: 100%;
   background: var(--yellow);
   color: var(--black);
   border-color: var(--yellow);
   box-shadow: 4px 4px 0 rgba(255, 229, 0, 0.35);
-  font-size: 16px;
+  font-size: 14px;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 #rollNumberBtn:disabled {
@@ -793,9 +796,15 @@ td.disabled {
 
 .caller-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: auto 1fr;
   gap: 10px;
-  margin-top: 12px;
+  align-items: stretch;
+}
+
+.caller-game-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .dialog-overlay {
