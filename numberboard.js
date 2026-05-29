@@ -29,15 +29,46 @@ document.addEventListener("DOMContentLoaded", () => {
         rollBtn.classList.toggle("rolling", !enabled);
     }
 
+    function isMobile() {
+        return window.innerWidth <= 768;
+    }
+
     function setHostStatus(isHost, players = []) {
         const callerContainer = document.querySelector(".caller-container");
         const callerInner     = document.querySelector(".caller-inner");
+        const fab             = document.getElementById("callerFab");
 
-        if (callerContainer) callerContainer.style.display = isHost ? "block" : "none";
-        if (callerInner) callerInner.style.display = isHost ? "flex" : "none";
+        if (isMobile()) {
+            if (callerContainer) callerContainer.style.display = "block";
+            if (callerInner) callerInner.style.display = "flex";
+            if (fab) fab.style.display = isHost ? "flex" : "none";
+            if (!isHost) closeSheet();
+        } else {
+            if (callerContainer) callerContainer.style.display = isHost ? "block" : "none";
+            if (callerInner) callerInner.style.display = isHost ? "flex" : "none";
+            if (fab) fab.style.display = "none";
+        }
 
         if (isHost) populateTransferSelect(players);
     }
+
+    function openSheet() {
+        const container = document.querySelector(".caller-container");
+        const backdrop  = document.getElementById("callerBackdrop");
+        if (container) container.classList.add("sheet-open");
+        if (backdrop) backdrop.classList.add("open");
+    }
+
+    function closeSheet() {
+        const container = document.querySelector(".caller-container");
+        const backdrop  = document.getElementById("callerBackdrop");
+        if (container) container.classList.remove("sheet-open");
+        if (backdrop) backdrop.classList.remove("open");
+    }
+
+    document.getElementById("callerFab")?.addEventListener("click", openSheet);
+    document.getElementById("callerSheetClose")?.addEventListener("click", closeSheet);
+    document.getElementById("callerBackdrop")?.addEventListener("click", closeSheet);
 
     function populateTransferSelect(players) {
         if (!transferSel) return;

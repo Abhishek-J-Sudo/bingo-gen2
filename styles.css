@@ -256,7 +256,9 @@ input {
   color: var(--white);
   cursor: pointer;
   box-shadow: var(--shadow);
-  transition: transform 80ms ease, box-shadow 80ms ease;
+  transition:
+    transform 80ms ease,
+    box-shadow 80ms ease;
   flex-shrink: 0;
 }
 
@@ -689,6 +691,26 @@ td.disabled {
   background: var(--black);
 }
 
+.sheet-handle-bar {
+  display: none;
+}
+
+.caller-fab {
+  display: none;
+}
+
+.caller-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 150;
+}
+
+.caller-backdrop.open {
+  display: block;
+}
+
 .transfer-row {
   display: flex;
   gap: 8px;
@@ -962,12 +984,91 @@ td.disabled {
 
   .caller-inner {
     grid-template-columns: 1fr;
-    padding: 20px;
-    gap: 16px;
+    padding: 16px 20px 24px;
+    gap: 14px;
+  }
+
+  .caller-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .caller-actions {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #rollNumberBtn {
+    width: 100%;
+    height: auto;
+    white-space: nowrap;
+  }
+
+  /* Bottom sheet */
+  .caller-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 160;
+    border-top: var(--b3);
+    transform: translateY(100%);
+    transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .caller-container.sheet-open {
+    transform: translateY(0) !important;
+    display: block !important;
+  }
+
+  .sheet-handle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px 4px;
+    position: relative;
+  }
+
+  .sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  .sheet-close {
+    position: absolute;
+    right: 16px;
+    top: 8px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+  }
+
+  .caller-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 140;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: var(--black);
+    color: var(--white);
+    border: var(--b3);
+    border-right: none;
+    box-shadow: -4px 4px 0 #000;
+    font-size: 0;
   }
 
   td {
