@@ -43,13 +43,27 @@ input {
 }
 
 #lobby-view {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
   justify-content: center;
   align-items: flex-start;
   padding: 40px 20px;
   background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.09) 1px, transparent 1px),
     radial-gradient(ellipse at 10% 90%, rgba(255, 229, 0, 0.07) 0%, transparent 55%),
-    radial-gradient(ellipse at 90% 10%, rgba(13, 211, 197, 0.06) 0%, transparent 45%), var(--bg);
+    radial-gradient(ellipse at 90% 10%, rgba(13, 211, 197, 0.06) 0%, transparent 45%),
+    var(--bg);
+  background-size: 20px 20px, 100% 100%, 100% 100%, 100% 100%;
+}
+
+#lobby-view::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(500px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 229, 0, 0.07), transparent 70%);
+  transition: background 0.08s ease;
 }
 
 #lobby-view.active {
@@ -74,14 +88,44 @@ input {
   padding: 28px 32px 22px;
   background: var(--yellow);
   border-bottom: var(--b3);
+  overflow: hidden;
+}
+
+.lobby-o {
+  display: inline-block;
+}
+
+.lobby-arrow {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.lobby-arrow::before {
+  content: '';
+  display: block;
+  width: 46px;
+  height: 6px;
+  background: var(--black);
+}
+
+.lobby-arrow::after {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 15px solid var(--black);
 }
 
 .lobby-header h1 {
-  font-family: 'Bangers', system-ui, sans-serif;
-  font-size: clamp(48px, 11vw, 68px);
-  font-weight: 400;
+  font-size: clamp(38px, 9vw, 54px);
+  font-weight: 700;
   line-height: 0.88;
-  letter-spacing: 2px;
+  letter-spacing: -2px;
   text-transform: uppercase;
 }
 
@@ -216,10 +260,9 @@ input {
 }
 
 .header-title h1 {
-  font-family: 'Bangers', system-ui, sans-serif;
-  font-size: clamp(22px, 3.2vw, 32px);
-  font-weight: 400;
-  letter-spacing: 2px;
+  font-size: clamp(18px, 2.8vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
   text-transform: uppercase;
   line-height: 1;
 }
@@ -417,10 +460,8 @@ input {
 
 th {
   height: 36px;
-  font-family: 'Bangers', system-ui, sans-serif;
-  font-size: 26px;
-  font-weight: 400;
-  letter-spacing: 3px;
+  font-size: 20px;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--black);
 }
@@ -747,10 +788,8 @@ td.disabled {
   display: grid;
   place-items: center;
   min-height: 88px;
-  font-family: 'Bangers', system-ui, sans-serif;
-  font-size: 64px;
-  font-weight: 400;
-  letter-spacing: 3px;
+  font-size: 52px;
+  font-weight: 700;
   line-height: 1;
   position: relative;
   z-index: 1;
