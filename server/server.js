@@ -18,7 +18,8 @@ const ROOT_DIR = path.join(__dirname, "..");
 const ROLL_DURATION_MS = 1800;
 const rollingRooms = new Set();
 const socketRooms = new Map();         // socket.id → { code, sessionId }
-const hostDisconnectTimers = new Map(); // `${sessionId}:${code}` → timer
+const hostDisconnectTimers = new Map();   // `${sessionId}:${code}` → timer
+const playerDisconnectTimers = new Map(); // `${sessionId}:${code}` → timer
 
 const PLAYER_NAMES = [
   "Excel Ninja", "Deadline Daku", "Chill Operator", "Jugaadu Analyst",
@@ -565,10 +566,14 @@ io.on("connection", (socket) => {
     const normSessionId = normalizeSessionId(sessionId);
     const timerKey = `${normSessionId}:${room.code}`;
 
-    // If the host reconnected before the grace period expired, cancel transfer
+    // Cancel any pending disconnect timers for this session
     if (hostDisconnectTimers.has(timerKey)) {
       clearTimeout(hostDisconnectTimers.get(timerKey));
       hostDisconnectTimers.delete(timerKey);
+    }
+    if (playerDisconnectTimers.has(timerKey)) {
+      clearTimeout(playerDisconnectTimers.get(timerKey));
+      playerDisconnectTimers.delete(timerKey);
     }
 
     socketRooms.set(socket.id, { code: room.code, sessionId: normSessionId });
@@ -589,7 +594,29 @@ io.on("connection", (socket) => {
 
     let room;
     try { room = await getRoomByCode(info.code); } catch (_) { return; }
-    if (!room || room.host_session_id !== info.sessionId) return;
+    if (!room) return;
+
+    if (room.host_session_id !== info.sessionId) {
+      // Non-host disconnected — 3s grace period in case it's a page refresh
+      const timerKey = `${info.sessionId}:${info.code}`;
+      const timer = setTimeout(async () => {
+        playerDisconnectTimers.delete(timerKey);
+        try {
+          const currentRoom = await getRoomByCode(info.code);
+          if (!currentRoom) return;
+          await db.query(
+            "delete from players where room_id = $1 and session_id = $2",
+            [currentRoom.id, info.sessionId]
+          );
+          const updatedRoom = await getRoomByCode(info.code);
+          await emitRoomState(updatedRoom);
+        } catch (err) {
+          console.error("Player disconnect cleanup failed:", err);
+        }
+      }, 3000);
+      playerDisconnectTimers.set(timerKey, timer);
+      return;
+    }
 
     // Grace period: give the host 8 s to reconnect before transferring
     const timerKey = `${info.sessionId}:${info.code}`;
