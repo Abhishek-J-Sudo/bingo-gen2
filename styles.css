@@ -464,7 +464,7 @@ td.disabled {
 .winner-banner strong {
   overflow: hidden;
   color: #777;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 700;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -472,28 +472,57 @@ td.disabled {
 }
 
 .winner-banner.active {
+  position: relative;
+  overflow: hidden;
   background: var(--yellow);
+}
+
+.winner-banner.active::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 500px;
+  height: 500px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg at 50% 50%,
+    var(--yellow) 0deg 5deg,
+    #ffd000 5deg 10deg
+  );
+  animation: strips-spin 10s linear infinite;
+  z-index: 0;
+}
+
+@keyframes strips-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 .winner-banner.active span,
 .winner-banner.active strong {
+  position: relative;
+  z-index: 1;
   color: var(--black);
 }
 
+#winnerName {
+  left: 32%;
+}
+
 .winner-banner.active strong {
-  animation: winner-name-flash 900ms ease-out 2;
+  animation: winner-name-flash 1400ms ease-in-out infinite;
 }
 
 @keyframes winner-name-flash {
   0%,
   100% {
-    background: transparent;
-    color: var(--black);
+    opacity: 1;
   }
-  35%,
-  65% {
-    background: var(--black);
-    color: var(--yellow);
+  50% {
+    opacity: 0;
   }
 }
 

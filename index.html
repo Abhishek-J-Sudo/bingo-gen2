@@ -1,126 +1,136 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bingo Madness</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
     <!-- LOBBY VIEW -->
     <div id="lobby-view" class="view active">
-        <div class="lobby-card">
-            <div class="lobby-header">
-                <h1>Bingo<br>Madness</h1>
-                <p class="tagline">Mark. Match. Win.</p>
-            </div>
-            <div class="lobby-body">
-
-                <input type="text" id="roomCodeInput"   placeholder="Room code" autocomplete="off" autocapitalize="characters">
-                <input type="text" id="playerNameInput" placeholder="Your name" autocomplete="off">
-
-                <div class="lobby-row">
-                    <button id="joinRoom"   class="button-6">Join Room</button>
-                    <button id="createRoom" class="button-6">Create Room</button>
-                </div>
-
-            </div>
+      <div class="lobby-card">
+        <div class="lobby-header">
+          <h1>Bingo<br />Madness</h1>
+          <p class="tagline">Mark. Match. Win.</p>
         </div>
+        <div class="lobby-body">
+          <input
+            type="text"
+            id="roomCodeInput"
+            placeholder="Room code"
+            autocomplete="off"
+            autocapitalize="characters"
+          />
+          <input type="text" id="playerNameInput" placeholder="Your name" autocomplete="off" />
+
+          <div class="lobby-row">
+            <button id="joinRoom" class="button-6">Join Room</button>
+            <button id="createRoom" class="button-6">Create Room</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- GAME VIEW -->
     <div id="game-view" class="view">
-        <div class="main-container">
+      <div class="main-container">
+        <header class="app-header">
+          <div class="header-title">
+            <h1>Bingo Madness</h1>
+            <p class="tagline">Mark. Match. Win.</p>
+          </div>
+          <div class="header-meta">
+            <div id="roomCodeDisplay">&mdash;</div>
+            <div id="gameStatus" data-status="waiting">Waiting</div>
+          </div>
+          <div class="header-right">
+            <div id="playerCount">0/10</div>
+            <button id="leaveRoom" class="button-6">Leave</button>
+          </div>
+        </header>
 
-            <header class="app-header">
-                <div class="header-title">
-                    <h1>Bingo Madness</h1>
-                    <p class="tagline">Mark. Match. Win.</p>
-                </div>
-                <div class="header-meta">
-                    <div id="roomCodeDisplay">&mdash;</div>
-                    <div id="gameStatus" data-status="waiting">Waiting</div>
-                </div>
-                <div class="header-right">
-                    <div id="playerCount">0/10</div>
-                    <button id="leaveRoom" class="button-6">Leave</button>
-                </div>
-            </header>
+        <div class="players-strip" id="playersStrip" aria-label="Players in room"></div>
 
-            <div class="players-strip" id="playersStrip" aria-label="Players in room"></div>
-
-            <div class="game-container">
-                <div class="bingo-table-wrap">
-                    <div class="board-column">
-                        <div class="board-frame">
-                            <table id="bingoTable"></table>
-                        </div>
-                        <div class="winner-banner" id="winnerBanner">
-                            <span>Winner</span>
-                            <strong id="winnerName">No winner yet</strong>
-                        </div>
-                    </div>
-                </div>
-                <div class="column2">
-                    <div id="playerName">Name: &mdash;</div>
-                    <div class="called-numbers">
-                        <span>Called Numbers</span>
-                        <div id="calledNumbersList"></div>
-                    </div>
-                    <div class="roll-display" id="rollDisplay">
-                        <span>Current Roll</span>
-                        <div id="rollNumber">--</div>
-                        <p id="rollStatus">Waiting for host</p>
-                    </div>
-                    <button id="playerReset" class="button-6">Reset Board</button>
-                </div>
+        <div class="game-container">
+          <div class="bingo-table-wrap">
+            <div class="board-column">
+              <div class="board-frame">
+                <table id="bingoTable"></table>
+              </div>
+              <div class="winner-banner" id="winnerBanner">
+                <span>Winner:</span>
+                <strong id="winnerName">No winner yet</strong>
+              </div>
             </div>
-
-            <!-- Caller section - shown automatically when you are the host -->
-            <div class="caller-container">
-                <div class="caller-inner">
-                    <div id="callerControls">
-                        <span class="caller-section-label">Game Control</span>
-                        <div id="transferHostSection">
-                            <h3>Transfer Host</h3>
-                            <div class="transfer-row">
-                                <select id="transferHostSelect" class="transfer-select">
-                                    <option value="">Hand off to...</option>
-                                </select>
-                                <button id="transferHostBtn" class="button-6">Hand Off</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="board">
-                        <div class="roll-control">
-                            <span class="caller-section-label">Number Roll</span>
-                            <button id="rollNumberBtn" class="button-6">Roll Number</button>
-                        </div>
-                        <div class="caller-actions">
-                            <button id="startGame" class="button-6">Start Game</button>
-                            <button id="reset" class="button-6">Reset Game</button>
-                        </div>
-                    </div>
-                </div>
+          </div>
+          <div class="column2">
+            <div id="playerName">Name: &mdash;</div>
+            <div class="called-numbers">
+              <span>Called Numbers</span>
+              <div id="calledNumbersList"></div>
             </div>
-
+            <div class="roll-display" id="rollDisplay">
+              <span>Current Roll</span>
+              <div id="rollNumber">--</div>
+              <p id="rollStatus">Waiting for host</p>
+            </div>
+            <button id="playerReset" class="button-6">Reset Board</button>
+          </div>
         </div>
+
+        <!-- Caller section - shown automatically when you are the host -->
+        <div class="caller-container">
+          <div class="caller-inner">
+            <div id="callerControls">
+              <span class="caller-section-label">Game Control</span>
+              <div id="transferHostSection">
+                <h3>Transfer Host</h3>
+                <div class="transfer-row">
+                  <select id="transferHostSelect" class="transfer-select">
+                    <option value="">Hand off to...</option>
+                  </select>
+                  <button id="transferHostBtn" class="button-6">Hand Off</button>
+                </div>
+              </div>
+            </div>
+            <div class="board">
+              <div class="roll-control">
+                <span class="caller-section-label">Number Roll</span>
+                <button id="rollNumberBtn" class="button-6">Roll Number</button>
+              </div>
+              <div class="caller-actions">
+                <button id="startGame" class="button-6">Start Game</button>
+                <button id="reset" class="button-6">Reset Game</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="dialogOverlay" class="dialog-overlay" aria-hidden="true">
-        <div class="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
-            <div class="dialog-header">
-                <h2 id="dialogTitle">Notice</h2>
-            </div>
-            <p id="dialogMessage"></p>
-            <div class="dialog-actions">
-                <button id="dialogCancel" class="button-6" type="button">No</button>
-                <button id="dialogConfirm" class="button-6" type="button">OK</button>
-            </div>
+      <div
+        class="dialog-box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialogTitle"
+        aria-describedby="dialogMessage"
+      >
+        <div class="dialog-header">
+          <h2 id="dialogTitle">Notice</h2>
         </div>
+        <p id="dialogMessage"></p>
+        <div class="dialog-actions">
+          <button id="dialogCancel" class="button-6" type="button">No</button>
+          <button id="dialogConfirm" class="button-6" type="button">OK</button>
+        </div>
+      </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -130,5 +140,5 @@
     <script src="bingo.js"></script>
     <script src="numberboard.js"></script>
     <script src="confetti.js"></script>
-</body>
+  </body>
 </html>
