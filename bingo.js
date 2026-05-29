@@ -157,6 +157,7 @@ function renderBoard(numbers, markedNumbers = []) {
         for (let c = 0; c < 5; c++) {
             const cell = row.insertCell();
             cell.innerText = numbers[idx];
+            cell.dataset.n  = numbers[idx];
             if (markedNumbers.includes(numbers[idx])) cell.classList.add("marked");
             idx++;
         }
@@ -170,6 +171,32 @@ function attachCellClickListeners() {
         cell.removeEventListener("click", handleCellClick);
         cell.addEventListener("click", handleCellClick);
     });
+}
+
+function playSliceAnimation(cell) {
+    const number = cell.textContent;
+
+    const overlay = document.createElement("div");
+    overlay.className = "slice-overlay";
+
+    const top = document.createElement("div");
+    top.className = "slice-half slice-top";
+    top.textContent = number;
+
+    const bot = document.createElement("div");
+    bot.className = "slice-half slice-bot";
+    bot.textContent = number;
+
+    overlay.appendChild(top);
+    overlay.appendChild(bot);
+    cell.appendChild(overlay);
+
+    // Animate apart and STAY — CSS ::before/::after take over at the same offsets
+    const opts = { duration: 220, easing: "ease-out", fill: "forwards" };
+    top.animate([{ transform: "translate(0, 0)" }, { transform: "translate(-2px, -3px)" }], opts);
+    bot.animate([{ transform: "translate(0, 0)" }, { transform: "translate(2px, 3px)"  }], opts);
+
+    setTimeout(() => overlay.remove(), 250);
 }
 
 async function handleCellClick(event) {
@@ -189,6 +216,8 @@ async function handleCellClick(event) {
 
     cell.classList.toggle("marked");
     state.markedNumbers = getCellNumbers("#bingoTable td.marked");
+
+    if (!isMarked) playSliceAnimation(cell);
 
     try {
         await BingoApi.markBoard(state.boardId, state.sessionId, state.markedNumbers);
