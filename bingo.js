@@ -366,18 +366,31 @@ function connectSocket(code) {
             state.celebratedWinnerCount = 0;
             applyRoomState(roomState);
             updateRollDisplayFromState();
-            if (roomState.hostPlayerId !== state.playerId) {
-                showAlert("The host has reset the game. Your board has been refreshed.", "Game Reset");
-            }
+
+            const isNotHost = roomState.hostPlayerId !== state.playerId;
+            let refreshFailed = false;
 
             if (state.boardId && state.sessionId) {
                 try {
                     const data = await BingoApi.resetBoard(state.boardId, state.sessionId);
                     state.boardNumbers  = data.numbers;
                     state.markedNumbers = data.markedNumbers || [];
-                } catch (_) {}
+                } catch (_) {
+                    refreshFailed = true;
+                }
             }
             renderBoard(state.boardNumbers, []);
+
+            if (isNotHost) {
+                if (refreshFailed) {
+                    showWarning(
+                        'The host reset the game but your board could not be refreshed. Use "Reset Board" to get new numbers.',
+                        "Game Reset"
+                    );
+                } else {
+                    showAlert("The host has reset the game. Your board has been refreshed.", "Game Reset");
+                }
+            }
         });
 
         state.socket.on("host-transferred", (roomState) => {
