@@ -154,15 +154,21 @@ async function getWinners(roomId) {
 }
 
 async function getRoomState(room) {
-  const [calledNumbers, winners, countResult, playersResult, hostPlayerResult] = await Promise.all([
+  const [calledNumbers, winners, countResult, playersResult, hostPlayerResult, boardsResult] = await Promise.all([
     getCalledNumbers(room.id),
     getWinners(room.id),
     db.query("select count(*)::int as count from players where room_id = $1", [room.id]),
     db.query("select id, name from players where room_id = $1 order by created_at", [room.id]),
     room.host_session_id
       ? db.query("select id from players where room_id = $1 and session_id = $2", [room.id, room.host_session_id])
-      : Promise.resolve({ rows: [] })
+      : Promise.resolve({ rows: [] }),
+    db.query("select player_id, numbers from boards where room_id = $1", [room.id])
   ]);
+
+  const dangerNumbers = {};
+  for (const b of boardsResult.rows) {
+    dangerNumbers[b.player_id] = [0, 4, 12, 20, 24].map(i => b.numbers[i]);
+  }
 
   return {
     roomId:      room.id,
@@ -173,7 +179,8 @@ async function getRoomState(room) {
     winners,
     playerCount: countResult.rows[0].count,
     players:     playersResult.rows.map((p) => ({ id: p.id, name: p.name })),
-    hostPlayerId: hostPlayerResult.rows[0]?.id || null
+    hostPlayerId: hostPlayerResult.rows[0]?.id || null,
+    dangerNumbers
   };
 }
 
@@ -528,9 +535,16 @@ app.post("/api/boards/:boardId/bingo", asyncHandler(async (req, res) => {
 
   if (boardResult.rowCount === 0) return res.status(404).json({ error: "Board not found." });
 
-  const board        = boardResult.rows[0];
+  const board         = boardResult.rows[0];
   const calledNumbers = await getCalledNumbers(board.room_id);
-  const winner       = hasBingo(board.numbers, board.marked_numbers || [], calledNumbers);
+
+  const dangerNums = [0, 4, 12, 20, 24].map(i => board.numbers[i]);
+  const limbsLost  = dangerNums.filter(n => calledNumbers.includes(n)).length;
+  if (limbsLost >= 5) {
+    return res.status(409).json({ error: "You've been eliminated — all your limbs are gone!" });
+  }
+
+  const winner = hasBingo(board.numbers, board.marked_numbers || [], calledNumbers);
 
   if (!winner || board.status !== "active") {
     return res.status(409).json({ error: "Bingo is not valid yet." });

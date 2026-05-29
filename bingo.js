@@ -9,10 +9,80 @@ const state = {
   markedNumbers: [],
   calledNumbers: [],
   winners: [],
+  players: [],
+  dangerNumbers: {},
   socket: null,
   rollTimer: null,
   celebratedWinnerCount: 0,
 };
+
+const droppedLimbs = new Set(); // `${playerId}-${limbIndex}` — tracks animated limbs
+
+const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
+
+function createAvatarCard(player) {
+  const card = document.createElement('div');
+  card.className = 'avatar-card';
+  card.dataset.playerId = player.id;
+
+  const isMe = player.id === state.playerId;
+  card.innerHTML = `
+    <div class="avatar-figure">
+      <svg viewBox="0 0 50 90" width="44" height="80" stroke="currentColor" stroke-linecap="round" fill="none" overflow="visible">
+        <circle data-limb="head" cx="25" cy="12" r="9" fill="#fff" stroke-width="3"/>
+        <line class="avatar-body" x1="25" y1="21" x2="25" y2="56" stroke-width="3"/>
+        <line data-limb="arm-l" x1="25" y1="33" x2="7"  y2="47" stroke-width="3"/>
+        <line data-limb="arm-r" x1="25" y1="33" x2="43" y2="47" stroke-width="3"/>
+        <line data-limb="leg-l" x1="25" y1="56" x2="10" y2="76" stroke-width="3"/>
+        <line data-limb="leg-r" x1="25" y1="56" x2="40" y2="76" stroke-width="3"/>
+      </svg>
+    </div>
+    <div class="avatar-name">${player.name}${isMe ? '<span class="avatar-you"> ★</span>' : ''}</div>
+    <div class="avatar-floor"></div>
+  `;
+  return card;
+}
+
+function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {}) {
+  const arena = document.getElementById('avatarArena');
+  if (!arena) return;
+
+  // Remove cards for players who have left
+  arena.querySelectorAll('.avatar-card').forEach(card => {
+    if (!players.find(p => p.id === card.dataset.playerId)) card.remove();
+  });
+
+  players.forEach(player => {
+    let card = arena.querySelector(`[data-player-id="${player.id}"]`);
+    if (!card) {
+      card = createAvatarCard(player);
+      arena.appendChild(card);
+    }
+
+    const dangers = dangerNumbers[player.id] || [];
+    const lostLimbs = dangers.map(n => calledNumbers.includes(n));
+    const eliminated = lostLimbs.length === 5 && lostLimbs.every(Boolean);
+
+    lostLimbs.forEach((lost, i) => {
+      const key = `${player.id}-${i}`;
+      const limbEl = card.querySelector(`[data-limb="${LIMB_KEYS[i]}"]`);
+      if (!limbEl) return;
+
+      if (lost && !droppedLimbs.has(key)) {
+        droppedLimbs.add(key);
+        limbEl.classList.add('limb-dropping');
+        limbEl.addEventListener('animationend', () => {
+          limbEl.classList.remove('limb-dropping');
+          limbEl.classList.add('limb-gone');
+        }, { once: true });
+      } else if (lost) {
+        limbEl.classList.add('limb-gone');
+      }
+    });
+
+    card.classList.toggle('avatar-eliminated', eliminated);
+  });
+}
 
 localStorage.setItem('bingoSessionId', state.sessionId);
 
@@ -363,6 +433,8 @@ function applyRoomState(roomState) {
   state.roomStatus = roomState.status || state.roomStatus;
   state.calledNumbers = roomState.calledNumbers || [];
   state.winners = roomState.winners || [];
+  state.players = roomState.players || state.players;
+  if (roomState.dangerNumbers) state.dangerNumbers = roomState.dangerNumbers;
 
   localStorage.setItem('bingoRoomCode', state.roomCode);
 
@@ -373,6 +445,7 @@ function applyRoomState(roomState) {
   updateCalledNumbersList();
   if (!state.rollTimer) updateRollDisplayFromState();
   renderWinners();
+  renderAvatarArena(roomState.players || [], state.calledNumbers, state.dangerNumbers);
 
   // Notify caller module of host status and player list
   if (window.BingoCaller && typeof window.BingoCaller.applyRoomState === 'function') {
@@ -402,6 +475,7 @@ function connectSocket(code) {
         'Called number',
       );
       updateCalledNumbersList();
+      renderAvatarArena(state.players, state.calledNumbers, state.dangerNumbers);
       if (window.BingoCaller && typeof window.BingoCaller.setRollEnabled === 'function') {
         window.BingoCaller.setRollEnabled(
           state.roomStatus === 'active' && state.calledNumbers.length < 25,
@@ -414,6 +488,7 @@ function connectSocket(code) {
     state.socket.on('game-reset', async (roomState) => {
       state.markedNumbers = [];
       state.celebratedWinnerCount = 0;
+      droppedLimbs.clear();
       applyRoomState(roomState);
       updateRollDisplayFromState();
 

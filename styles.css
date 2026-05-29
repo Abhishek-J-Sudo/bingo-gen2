@@ -389,6 +389,97 @@ input {
   display: none;
 }
 
+/* ── Avatar arena ──────────────────────────────────────────── */
+
+.avatar-arena {
+  display: flex;
+  gap: 8px;
+  padding: 12px 4px 4px;
+  overflow-x: auto;
+}
+
+.avatar-arena:empty {
+  display: none;
+}
+
+.avatar-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.avatar-figure {
+  position: relative;
+  padding: 2px 4px;
+}
+
+.avatar-card.avatar-eliminated .avatar-figure svg {
+  opacity: 0.25;
+}
+
+.avatar-card.avatar-eliminated .avatar-figure::after {
+  content: '✕';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--red);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.avatar-name {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-you {
+  color: var(--teal);
+}
+
+/* Limb transform origins */
+[data-limb] {
+  transform-box: fill-box;
+}
+[data-limb="head"]  { transform-origin: center bottom; }
+[data-limb="arm-l"] { transform-origin: right top; }
+[data-limb="arm-r"] { transform-origin: left top; }
+[data-limb="leg-l"] { transform-origin: right top; }
+[data-limb="leg-r"] { transform-origin: left top; }
+
+@keyframes limb-drop {
+  0%   { transform: none; opacity: 1; }
+  15%  { transform: rotate(-12deg); opacity: 1; }
+  60%  { transform: rotate(85deg) translateY(10px); opacity: 1; }
+  100% { transform: rotate(95deg) translateY(30px); opacity: 0; }
+}
+
+.limb-dropping {
+  animation: limb-drop 500ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+.limb-gone {
+  display: none;
+}
+
+.avatar-floor {
+  width: 56px;
+  height: 3px;
+  background: var(--black);
+  margin-top: 2px;
+}
+
 .players-label {
   flex: 0 0 auto;
   margin-right: 7px;
