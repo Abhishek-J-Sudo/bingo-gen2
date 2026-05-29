@@ -38,7 +38,6 @@ function createAvatarCard(player) {
       </svg>
     </div>
     <div class="avatar-name">${player.name}${isMe ? '<span class="avatar-you"> ★</span>' : ''}</div>
-    <div class="avatar-floor"></div>
   `;
   return card;
 }
@@ -489,6 +488,8 @@ function connectSocket(code) {
       state.markedNumbers = [];
       state.celebratedWinnerCount = 0;
       droppedLimbs.clear();
+      const arena = document.getElementById('avatarArena');
+      if (arena) arena.innerHTML = '';
       applyRoomState(roomState);
       updateRollDisplayFromState();
 

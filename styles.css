@@ -393,9 +393,10 @@ input {
 
 .avatar-arena {
   display: flex;
-  gap: 8px;
-  padding: 12px 4px 4px;
+  gap: 16px;
+  padding: 12px 8px 8px;
   overflow-x: auto;
+  border-bottom: var(--b3);
 }
 
 .avatar-arena:empty {
@@ -473,12 +474,6 @@ input {
   display: none;
 }
 
-.avatar-floor {
-  width: 56px;
-  height: 3px;
-  background: var(--black);
-  margin-top: 2px;
-}
 
 .players-label {
   flex: 0 0 auto;
