@@ -155,6 +155,9 @@ function renderBoard(numbers, markedNumbers = []) {
       cell.innerText = numbers[idx];
       cell.dataset.n = numbers[idx];
       if (markedNumbers.includes(numbers[idx])) cell.classList.add('marked');
+      cell.style.animationDelay = `${idx * 35}ms`;
+      cell.classList.add('cell-deal');
+      cell.addEventListener('animationend', () => cell.classList.remove('cell-deal'), { once: true });
       idx++;
     }
   }
