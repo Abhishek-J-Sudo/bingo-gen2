@@ -248,8 +248,20 @@ function setRollDisplay(number, status, rolling = false) {
     const numberEl = document.getElementById("rollNumber");
     const statusEl = document.getElementById("rollStatus");
 
+    const wasRolling = rollDisplay?.classList.contains("rolling") ?? false;
     if (rollDisplay) rollDisplay.classList.toggle("rolling", rolling);
-    if (numberEl) numberEl.textContent = number || "--";
+
+    if (numberEl) {
+        numberEl.textContent = number || "--";
+        numberEl.classList.remove("roll-flick", "roll-impact");
+        void numberEl.offsetWidth; // force reflow to restart animation
+        if (rolling) {
+            numberEl.classList.add("roll-flick");
+        } else if (wasRolling && number && number !== "--") {
+            numberEl.classList.add("roll-impact");
+        }
+    }
+
     if (statusEl) statusEl.textContent = status;
 }
 
