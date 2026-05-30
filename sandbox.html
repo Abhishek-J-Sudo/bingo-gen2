@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stick Figure Physics Sandbox</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+      padding: 20px;
+    }
+    h1 { color: #FFE600; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; }
+    #arena { display: block; background: #f0ede4; border: 3px solid #111; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    button {
+      background: #FFE600; color: #000; border: 2px solid #000;
+      padding: 9px 16px; font: bold 10px/1 'Courier New';
+      letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+    }
+    button:hover { background: #fff; }
+    button.red { background: #e03030; color: #fff; border-color: #900; }
+    button.red:hover { background: #ff4444; }
+    .hint { color: #555; font-size: 9px; letter-spacing: 2px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Stick Figure Physics Sandbox</h1>
+  <canvas id="arena" width="700" height="360"></canvas>
+  <div class="controls">
+    <button id="btnReact">React! (all)</button>
+    <button id="btnDrop1">Drop Limb → ABHI</button>
+    <button id="btnDrop2">Drop Limb → SAM</button>
+    <button id="btnDrop3">Drop Limb → MIA</button>
+    <button id="btnElim" class="red">Eliminate ABHI</button>
+    <button id="btnReset">Reset All</button>
+  </div>
+  <p class="hint">Matter.js physics — detached limbs tumble and bounce on the floor</p>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+  (() => {
+    const { Engine, Bodies, Body, World, Runner } = Matter;
+
+    const engine = Engine.create({ gravity: { y: 2.2 } });
+    Runner.run(Runner.create(), engine);
+
+    const W = 700, H = 360, FLOOR_Y = 308;
+    const floorBody = Bodies.rectangle(W / 2, FLOOR_Y + 30, W + 100, 60, { isStatic: true });
+    World.add(engine.world, floorBody);
+
+    const canvas = document.getElementById('arena');
+    const ctx = canvas.getContext('2d');
+
+    const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
+
+    // ── Figure class ────────────────────────────────────────────────────────────
+    function Figure(px, name, isMe) {
+      this.baseX = px;
+      this.name  = name;
+      this.isMe  = isMe;
+      this.t     = Math.random() * Math.PI * 2; // phase offset so figures don't sync
+      this.vy    = 0;  // jump velocity (px/s)
+      this.dy    = 0;  // current vertical offset from floor
+      this.dropped    = new Set();
+      this.physBodies = {};
+    }
+
+    Figure.prototype.reset = function () {
+      this.t  = Math.random() * Math.PI * 2;
+      this.vy = 0;
+      this.dy = 0;
+      this.dropped.clear();
+      this.physBodies = {};
+    };
+
+    Figure.prototype.react = function () {
+      // Jump — only if legs are still attached
+      if (!this.dropped.has('leg-l') && !this.dropped.has('leg-r')) {
+        this.vy = -135;
+      }
+    };
+
+    Figure.prototype.update = function (dt) {
+      this.t += dt;
+      // Jump arc (simple Euler)
+      if (this.dy < 0 || this.vy !== 0) {
+        this.vy += 520 * dt;
+        this.dy += this.vy * dt;
+        if (this.dy >= 0) { this.dy = 0; this.vy = 0; }
+      }
+    };
+
+    // Returns world-space positions for every body part this frame.
+    Figure.prototype.getPose = function () {
+      const t  = this.t;
+      const sw = Math.sin(t * 0.7) * 2.5;   // body sway left-right
+      const bx = this.baseX + sw;
+      const by = FLOOR_Y + this.dy;
+      const as = Math.sin(t * 0.9) * 6;      // arm swing
+      const ls = Math.sin(t * 0.6) * 5;      // leg swing (opposite phase per side)
+      return {
+        torso:  { x1: bx,       y1: by - 38,  x2: bx,           y2: by - 78 },
+        head:   { cx: bx,       cy: by - 89,  r: 10 },
+        'arm-l':{ x1: bx,       y1: by - 65,  x2: bx - 18 + as, y2: by - 48 },
+        'arm-r':{ x1: bx,       y1: by - 65,  x2: bx + 18 - as, y2: by - 48 },
+        'leg-l':{ x1: bx,       y1: by - 38,  x2: bx - 12 - ls, y2: by },
+        'leg-r':{ x1: bx,       y1: by - 38,  x2: bx + 12 + ls, y2: by },
+      };
+    };
+
+    Figure.prototype.dropLimb = function (key) {
+      if (this.dropped.has(key)) return;
+      this.dropped.add(key);
+
+      const p = this.getPose();
+      let body;
+
+      if (key === 'head') {
+        body = Bodies.circle(p.head.cx, p.head.cy, p.head.r, {
+          restitution: 0.55, friction: 0.4, frictionAir: 0.01,
+        });
+        Body.setVelocity(body, { x: (Math.random() - 0.5) * 5, y: -5 });
+      } else {
+        const l   = p[key];
+        const cx  = (l.x1 + l.x2) / 2;
+        const cy  = (l.y1 + l.y2) / 2;
+        const len = Math.hypot(l.x2 - l.x1, l.y2 - l.y1);
+        const ang = Math.atan2(l.y2 - l.y1, l.x2 - l.x1);
+        body = Bodies.rectangle(cx, cy, len, 5, {
+          angle: ang, restitution: 0.4, friction: 0.3, frictionAir: 0.008,
+        });
+        body.limbLength = len; // stored for line-rendering
+        Body.setVelocity(body, {
+          x: (Math.random() - 0.5) * 8,
+          y: -(3 + Math.random() * 4),
+        });
+        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.45);
+      }
+
+      this.physBodies[key] = body;
+      World.add(engine.world, body);
+    };
+
+    Figure.prototype.eliminate = function () {
+      LIMB_KEYS.forEach(k => this.dropLimb(k));
+    };
+
+    Figure.prototype.draw = function (ctx) {
+      const p = this.getPose();
+
+      ctx.save();
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth   = 3;
+      ctx.lineCap     = 'round';
+
+      // Torso (always stays even after elimination — just a sad trunk)
+      ctx.beginPath();
+      ctx.moveTo(p.torso.x1, p.torso.y1);
+      ctx.lineTo(p.torso.x2, p.torso.y2);
+      ctx.stroke();
+
+      // Attached limbs (procedural)
+      ['arm-l', 'arm-r', 'leg-l', 'leg-r'].forEach(k => {
+        if (this.dropped.has(k)) return;
+        ctx.beginPath();
+        ctx.moveTo(p[k].x1, p[k].y1);
+        ctx.lineTo(p[k].x2, p[k].y2);
+        ctx.stroke();
+      });
+
+      // Head (procedural)
+      if (!this.dropped.has('head')) {
+        ctx.beginPath();
+        ctx.arc(p.head.cx, p.head.cy, p.head.r, 0, Math.PI * 2);
+        ctx.fillStyle = '#f0ede4';
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // Physics limbs (tumbling)
+      Object.entries(this.physBodies).forEach(([k, b]) => {
+        ctx.save();
+        if (k === 'head') {
+          ctx.beginPath();
+          ctx.arc(b.position.x, b.position.y, 10, 0, Math.PI * 2);
+          ctx.fillStyle = '#f0ede4';
+          ctx.fill();
+          ctx.strokeStyle = '#1a1a1a';
+          ctx.lineWidth   = 3;
+          ctx.stroke();
+        } else {
+          const half = (b.limbLength || 18) / 2;
+          const cos  = Math.cos(b.angle);
+          const sin  = Math.sin(b.angle);
+          ctx.beginPath();
+          ctx.moveTo(b.position.x - cos * half, b.position.y - sin * half);
+          ctx.lineTo(b.position.x + cos * half, b.position.y + sin * half);
+          ctx.strokeStyle = '#1a1a1a';
+          ctx.lineWidth   = 3;
+          ctx.lineCap     = 'round';
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+
+      // Name label
+      ctx.font      = 'bold 10px Courier New';
+      ctx.fillStyle = '#1a1a1a';
+      ctx.textAlign = 'center';
+      ctx.letterSpacing = '2px';
+      ctx.fillText(this.name + (this.isMe ? ' ★' : ''), this.baseX, FLOOR_Y + 20);
+
+      ctx.restore();
+    };
+
+    // ── Instantiate figures ─────────────────────────────────────────────────────
+    const figs = [
+      new Figure(175, 'ABHI', true),
+      new Figure(350, 'SAM',  false),
+      new Figure(525, 'MIA',  false),
+    ];
+
+    // ── Render loop ─────────────────────────────────────────────────────────────
+    let last = performance.now();
+    (function loop(now) {
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Ground
+      ctx.fillStyle = '#d8d4c8';
+      ctx.fillRect(0, FLOOR_Y, W, H - FLOOR_Y);
+      ctx.fillStyle = '#a09890';
+      ctx.fillRect(0, FLOOR_Y, W, 2);
+
+      figs.forEach(f => { f.update(dt); f.draw(ctx); });
+
+      requestAnimationFrame(loop);
+    })(last);
+
+    // ── Controls ────────────────────────────────────────────────────────────────
+    function dropRandom(fig) {
+      const avail = LIMB_KEYS.filter(k => !fig.dropped.has(k));
+      if (avail.length) fig.dropLimb(avail[Math.floor(Math.random() * avail.length)]);
+    }
+
+    document.getElementById('btnReact').onclick = () => figs.forEach(f => f.react());
+    document.getElementById('btnDrop1').onclick  = () => dropRandom(figs[0]);
+    document.getElementById('btnDrop2').onclick  = () => dropRandom(figs[1]);
+    document.getElementById('btnDrop3').onclick  = () => dropRandom(figs[2]);
+    document.getElementById('btnElim').onclick   = () => figs[0].eliminate();
+    document.getElementById('btnReset').onclick  = () => {
+      figs.forEach(f => f.reset());
+      World.clear(engine.world, true); // keepStatic=true keeps the floor
+    };
+  })();
+  </script>
+</body>
+</html>
