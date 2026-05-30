@@ -20,13 +20,33 @@ const droppedLimbs = new Set(); // `${playerId}-${limbIndex}` — tracks animate
 
 const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
 
-function createAvatarCard(player) {
-  const card = document.createElement('div');
-  card.className = 'avatar-card';
-  card.dataset.playerId = player.id;
+// List of available sprite characters under assets/characters/.
+// Each entry must have: {name}-torso.png, {name}-head.png, {name}-arm-l.png,
+// {name}-arm-r.png, {name}-leg-l.png, {name}-leg-r.png — all same canvas size.
+// Clear this array to fall back to SVG stick figures for everyone.
+const SPRITE_CHARACTERS = [
+  // 'ninja', 'pirate', 'robot', 'wizard',
+  // 'knight', 'cowboy', 'zombie', 'caveman',
+];
 
-  const isMe = player.id === state.playerId;
-  card.innerHTML = `
+function charForPlayer(playerId) {
+  if (!SPRITE_CHARACTERS.length) return null;
+  const hash = String(playerId).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return SPRITE_CHARACTERS[hash % SPRITE_CHARACTERS.length];
+}
+
+function buildSpriteFigure(charName) {
+  const base = `assets/characters/${charName}`;
+  const limbs = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
+  const imgs = [
+    `<img src="${base}/${charName}-torso.png" alt="" class="sprite-part">`,
+    ...limbs.map(l => `<img data-limb="${l}" src="${base}/${charName}-${l}.png" alt="" class="sprite-part">`),
+  ].join('');
+  return `<div class="avatar-figure avatar-figure--sprite">${imgs}</div>`;
+}
+
+function buildSvgFigure() {
+  return `
     <div class="avatar-figure">
       <svg viewBox="0 0 50 90" width="44" height="80" stroke="currentColor" stroke-linecap="round" fill="none" overflow="visible">
         <circle data-limb="head" cx="25" cy="12" r="9" fill="#fff" stroke-width="3"/>
@@ -36,7 +56,20 @@ function createAvatarCard(player) {
         <line data-limb="leg-l" x1="25" y1="56" x2="10" y2="76" stroke-width="3"/>
         <line data-limb="leg-r" x1="25" y1="56" x2="40" y2="76" stroke-width="3"/>
       </svg>
-    </div>
+    </div>`;
+}
+
+function createAvatarCard(player) {
+  const card = document.createElement('div');
+  card.className = 'avatar-card';
+  card.dataset.playerId = player.id;
+
+  const isMe = player.id === state.playerId;
+  const charName = charForPlayer(player.id);
+  const figure = charName ? buildSpriteFigure(charName) : buildSvgFigure();
+
+  card.innerHTML = `
+    ${figure}
     <div class="avatar-name">${player.name}${isMe ? '<span class="avatar-you"> ★</span>' : ''}</div>
   `;
   return card;

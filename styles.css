@@ -416,7 +416,37 @@ input {
   padding: 2px 4px;
 }
 
+/* ── Sprite figure (layered PNGs, same-canvas convention 200×280px) ── */
+.avatar-figure--sprite {
+  width: 90px;
+  height: 126px;
+  padding: 0;
+}
+
+.sprite-part {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center top;
+}
+
+/* PNG limb transform origins — percentages relative to the full canvas.
+   These assume consistent joint placement across characters.
+   Adjust if a specific character's joints land elsewhere. */
+img[data-limb="head"]  { transform-origin: 50% 24%; }
+img[data-limb="arm-l"] { transform-origin: 62% 22%; }
+img[data-limb="arm-r"] { transform-origin: 38% 22%; }
+img[data-limb="leg-l"] { transform-origin: 57% 57%; }
+img[data-limb="leg-r"] { transform-origin: 43% 57%; }
+
 .avatar-card.avatar-eliminated .avatar-figure svg {
+  opacity: 0.25;
+}
+
+.avatar-card.avatar-eliminated .avatar-figure--sprite {
   opacity: 0.25;
 }
 
