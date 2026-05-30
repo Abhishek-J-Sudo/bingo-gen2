@@ -42,8 +42,8 @@ const BingoDialog = (() => {
         });
     }
 
-    confirmBtn?.addEventListener("click", () => close(true));
-    cancelBtn?.addEventListener("click", () => close(false));
+    confirmBtn?.addEventListener("click", () => { window.BingoSounds?.dialogConfirm(); close(true); });
+    cancelBtn?.addEventListener("click", () => { window.BingoSounds?.dialogCancel(); close(false); });
 
     overlay?.addEventListener("click", (event) => {
         if (event.target === overlay && !cancelBtn.hidden) close(false);

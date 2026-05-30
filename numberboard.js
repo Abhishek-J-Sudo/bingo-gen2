@@ -73,9 +73,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     document.getElementById("rollFab")?.addEventListener("click", rollNumber);
-    document.getElementById("callerFab")?.addEventListener("click", openSheet);
-    document.getElementById("callerSheetClose")?.addEventListener("click", closeSheet);
-    document.getElementById("callerBackdrop")?.addEventListener("click", closeSheet);
+    document.getElementById("callerFab")?.addEventListener("click", () => { window.BingoSounds?.panelOpen(); openSheet(); });
+    document.getElementById("callerSheetClose")?.addEventListener("click", () => { window.BingoSounds?.panelClose(); closeSheet(); });
+    document.getElementById("callerBackdrop")?.addEventListener("click", () => { window.BingoSounds?.panelClose(); closeSheet(); });
 
     function populateTransferSelect(players) {
         if (!transferSel) return;
@@ -108,9 +108,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function toggleGameStatus() {
         const appState = window.BingoApp ? window.BingoApp.state : {};
+        const isActive = appState.roomStatus === "active";
+        window.BingoSounds?.[isActive ? 'gameStop' : 'gameStart']();
 
         try {
-            const roomState = appState.roomStatus === "active"
+            const roomState = isActive
                 ? await BingoApi.stopRoom(appState.roomCode, appState.sessionId)
                 : await BingoApi.startRoom(appState.roomCode, appState.sessionId);
 
@@ -147,6 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const appState = window.BingoApp ? window.BingoApp.state : {};
         if (!await showConfirm("Reset the game? This clears all called numbers, winners, and everyone's board.", "Reset Game")) return;
 
+        window.BingoSounds?.gameReset();
         try {
             const roomState = await BingoApi.resetRoom(appState.roomCode, appState.sessionId);
             window.BingoApp.applyRoomState(roomState);
@@ -165,6 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (!await showConfirm("Transfer host to this player?", "Transfer Host")) return;
 
+        window.BingoSounds?.transferHost();
         try {
             const roomState = await BingoApi.transferHost(appState.roomCode, appState.sessionId, newHostId);
             window.BingoApp.applyRoomState(roomState);
