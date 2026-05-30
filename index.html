@@ -74,7 +74,9 @@
                 <span>Winner:</span>
                 <strong id="winnerName">No winner yet</strong>
               </div>
-              <div class="avatar-arena" id="avatarArena"></div>
+              <div class="avatar-arena" id="avatarArena">
+                <canvas id="fateArenaCanvas" style="display:block;width:100%;border-radius:4px;"></canvas>
+              </div>
             </div>
           </div>
           <div class="column2">
@@ -166,9 +168,11 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="api.js"></script>
     <script src="dialog.js"></script>
+    <script src="fate-sandbox.js"></script>
     <script src="bingo.js"></script>
     <script src="numberboard.js"></script>
     <script src="confetti.js"></script>

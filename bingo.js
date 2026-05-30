@@ -80,31 +80,27 @@ function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {},
   const arena = document.getElementById('avatarArena');
   if (!arena) return;
 
-  // Remove cards for players who have left (String() handles UUID player IDs)
-  arena.querySelectorAll('.avatar-card').forEach(card => {
-    if (!players.find(p => String(p.id) === card.dataset.playerId)) card.remove();
-  });
-
-  players.forEach(player => {
-    let card = arena.querySelector(`[data-player-id="${player.id}"]`);
-    if (!card) {
-      card = createAvatarCard(player);
-      arena.appendChild(card);
+  // Init or update FATE sandbox
+  const fateCanvas = document.getElementById('fateArenaCanvas');
+  if (fateCanvas && window.FateSandbox && players.length > 0) {
+    if (!renderAvatarArena._sandboxReady) {
+      renderAvatarArena._sandboxReady = true;
+      FateSandbox.init(players, fateCanvas);
+      FateSandbox.syncState(players, calledNumbers, dangerNumbers);
     }
+  }
 
+  // Detect newly dropped limbs and queue FATE shots
+  players.forEach(player => {
     const dangers = dangerNumbers[player.id] || [];
     const lostLimbs = dangers.map(n => calledNumbers.includes(n));
-    const eliminated = lostLimbs.length === 5 && lostLimbs.every(Boolean);
-
     lostLimbs.forEach((lost, i) => {
       const key = `${player.id}-${i}`;
-      const limbEl = card.querySelector(`[data-limb="${LIMB_KEYS[i]}"]`);
-      if (!limbEl) return;
-
-      if (lost) limbEl.classList.add('limb-gone');
+      if (lost && live && !droppedLimbs.has(key)) {
+        droppedLimbs.add(key);
+        if (window.FateSandbox) FateSandbox.queueShot(player.id, LIMB_KEYS[i]);
+      }
     });
-
-    card.classList.toggle('avatar-eliminated', eliminated);
   });
 }
 
@@ -513,8 +509,8 @@ function connectSocket(code) {
       state.markedNumbers = [];
       state.celebratedWinnerCount = 0;
       droppedLimbs.clear();
-      const arena = document.getElementById('avatarArena');
-      if (arena) arena.innerHTML = '';
+      renderAvatarArena._sandboxReady = false;
+      if (window.FateSandbox) FateSandbox.reset();
       applyRoomState(roomState);
       updateRollDisplayFromState();
 
