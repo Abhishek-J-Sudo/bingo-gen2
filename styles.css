@@ -92,10 +92,38 @@ input {
 }
 
 .lobby-header {
+  position: relative;
   padding: 28px 32px 22px;
   background: var(--yellow);
   border-bottom: var(--b3);
   overflow: hidden;
+}
+
+.lobby-header::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 700px;
+  height: 700px;
+  transform: translate(-50%, -50%) rotate(0deg);
+  background: repeating-conic-gradient(
+    rgba(255,255,255,0.22) 0deg 12deg,
+    transparent 12deg 24deg
+  );
+  animation: rays-spin 10s linear infinite;
+  z-index: 0;
+}
+
+@keyframes rays-spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.lobby-header h1,
+.lobby-header .tagline,
+.lobby-arrow {
+  position: relative;
+  z-index: 1;
 }
 
 .lobby-o {
