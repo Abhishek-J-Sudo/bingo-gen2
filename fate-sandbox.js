@@ -489,8 +489,8 @@ window.FateSandbox = (() => {
   function init(players, canvasEl) {
     canvas = canvasEl;
     ctx    = canvas.getContext('2d');
-    W      = canvas.parentElement ? canvas.parentElement.clientWidth || 600 : 600;
-    H      = Math.round(W * 0.34);
+    W = 600;
+    H = Math.round(W * 0.34);
     canvas.width  = W;
     canvas.height = H;
 
