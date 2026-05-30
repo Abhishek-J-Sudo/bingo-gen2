@@ -489,17 +489,6 @@ img[data-limb="leg-r"] { transform-origin: 43% 57%; }
 [data-limb="leg-l"] { transform-origin: right top; }
 [data-limb="leg-r"] { transform-origin: left top; }
 
-@keyframes limb-drop {
-  0%   { transform: none; opacity: 1; }
-  15%  { transform: rotate(-12deg); opacity: 1; }
-  60%  { transform: rotate(85deg) translateY(10px); opacity: 1; }
-  100% { transform: rotate(95deg) translateY(30px); opacity: 0; }
-}
-
-.limb-dropping {
-  animation: limb-drop 500ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
-}
-
 .limb-gone {
   display: none;
 }

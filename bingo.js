@@ -69,19 +69,20 @@ function createAvatarCard(player) {
   const figure = charName ? buildSpriteFigure(charName) : buildSvgFigure();
 
   card.innerHTML = `
-    ${figure}
     <div class="avatar-name">${player.name}${isMe ? '<span class="avatar-you"> ★</span>' : ''}</div>
+    ${figure}
   `;
   return card;
 }
 
-function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {}) {
+
+function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {}, live = false) {
   const arena = document.getElementById('avatarArena');
   if (!arena) return;
 
-  // Remove cards for players who have left
+  // Remove cards for players who have left (String() handles UUID player IDs)
   arena.querySelectorAll('.avatar-card').forEach(card => {
-    if (!players.find(p => p.id === card.dataset.playerId)) card.remove();
+    if (!players.find(p => String(p.id) === card.dataset.playerId)) card.remove();
   });
 
   players.forEach(player => {
@@ -100,16 +101,7 @@ function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {})
       const limbEl = card.querySelector(`[data-limb="${LIMB_KEYS[i]}"]`);
       if (!limbEl) return;
 
-      if (lost && !droppedLimbs.has(key)) {
-        droppedLimbs.add(key);
-        limbEl.classList.add('limb-dropping');
-        limbEl.addEventListener('animationend', () => {
-          limbEl.classList.remove('limb-dropping');
-          limbEl.classList.add('limb-gone');
-        }, { once: true });
-      } else if (lost) {
-        limbEl.classList.add('limb-gone');
-      }
+      if (lost) limbEl.classList.add('limb-gone');
     });
 
     card.classList.toggle('avatar-eliminated', eliminated);
@@ -507,7 +499,7 @@ function connectSocket(code) {
         'Called number',
       );
       updateCalledNumbersList();
-      renderAvatarArena(state.players, state.calledNumbers, state.dangerNumbers);
+      renderAvatarArena(state.players, state.calledNumbers, state.dangerNumbers, true);
       if (window.BingoCaller && typeof window.BingoCaller.setRollEnabled === 'function') {
         window.BingoCaller.setRollEnabled(
           state.roomStatus === 'active' && state.calledNumbers.length < 25,
