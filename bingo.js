@@ -542,7 +542,7 @@ function setRollDisplay(number, status, rolling = false) {
       el.classList.add('roll-impact');
     }
   }
-  if (numberEl && wasRolling && number && number !== '--') playRollLand();
+  if (numberEl && wasRolling && !rolling && number && number !== '--') playRollLand();
 
   if (mobileChip) mobileChip.classList.toggle('rolling', rolling);
   if (statusEl) statusEl.textContent = status;
