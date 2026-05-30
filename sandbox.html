@@ -13,37 +13,40 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      gap: 16px;
+      gap: 14px;
       padding: 20px;
     }
     h1 { color: #FFE600; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; }
     #arena { display: block; background: #f0ede4; border: 3px solid #111; }
-    .controls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .controls { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
     button {
       background: #FFE600; color: #000; border: 2px solid #000;
-      padding: 9px 16px; font: bold 10px/1 'Courier New';
-      letter-spacing: 2px; text-transform: uppercase; cursor: pointer;
+      padding: 8px 13px; font: bold 9px/1 'Courier New';
+      letter-spacing: 1px; text-transform: uppercase; cursor: pointer;
     }
     button:hover { background: #fff; }
-    button.red { background: #e03030; color: #fff; border-color: #900; }
+    button.red    { background: #e03030; color: #fff; border-color: #900; }
     button.red:hover { background: #ff4444; }
-    button.orange { background: #ff8800; color: #fff; border-color: #c05500; }
+    button.orange { background: #ff8800; color: #fff; border-color: #b05500; }
     button.orange:hover { background: #ffaa33; }
     .hint { color: #555; font-size: 9px; letter-spacing: 2px; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>Stick Figure Physics Sandbox</h1>
-  <canvas id="arena" width="700" height="360"></canvas>
+  <h1>Stick Figure Physics Sandbox — FATE</h1>
+  <canvas id="arena" width="900" height="420"></canvas>
   <div class="controls">
-    <button id="btnHitSelf">Danger → ABHI ★</button>
-    <button id="btnHitSam">Danger → SAM</button>
-    <button id="btnHitMia">Danger → MIA</button>
-    <button id="btnHitAll" class="orange">ALL MATCH</button>
+    <button data-idx="0">Danger → ABHI ★</button>
+    <button data-idx="1">Danger → SAM</button>
+    <button data-idx="2">Danger → MIA</button>
+    <button data-idx="3">Danger → KAI</button>
+    <button data-idx="4">Danger → LEO</button>
+    <button data-idx="5">Danger → ZOE</button>
+    <button id="btnAll" class="orange">ALL MATCH</button>
     <button id="btnReact">React! (all)</button>
-    <button id="btnReset">Reset All</button>
+    <button id="btnReset" class="red">Reset All</button>
   </div>
-  <p class="hint">Host (★) shoots on danger match — sequential if multiple players hit</p>
+  <p class="hint">FATE walks to the right row before shooting — sequential if multiple players hit</p>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script>
@@ -53,51 +56,46 @@
     const engine = Engine.create({ gravity: { y: 2.2 } });
     Runner.run(Runner.create(), engine);
 
-    const W = 700, H = 360, FLOOR_Y = 308;
-    const floorBody = Bodies.rectangle(W / 2, FLOOR_Y + 30, W + 100, 60, { isStatic: true });
+    const W = 900, H = 420;
+    const PHYSICS_FLOOR_Y = 400;
+    const ROW1_Y = 230;
+    const ROW2_Y = 355;
+    const FATE_X = 58;
+    const PLAYER_START_X = 115;
+
+    // One physics floor at the bottom — limbs from both rows fall here
+    const floorBody = Bodies.rectangle(W / 2, PHYSICS_FLOOR_Y + 25, W + 100, 50, { isStatic: true });
     World.add(engine.world, floorBody);
 
     const canvas = document.getElementById('arena');
-    const ctx = canvas.getContext('2d');
+    const ctx    = canvas.getContext('2d');
 
     const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
 
-    // ── Figure ────────────────────────────────────────────────────────────────
-    function Figure(px, name, isHost) {
-      this.baseX       = px;
-      this.name        = name;
-      this.isHost      = isHost;
-      this.t           = Math.random() * Math.PI * 2;
-      this.vy          = 0;
-      this.dy          = 0;
-      this.aimTarget   = null;   // { x, y } — where arm-r points
-      this.aimElapsed  = 0;
-      this.aimDuration = 0;
-      this.hitFlash    = null;   // { elapsed, duration }
-      this.muzzleFlash = null;   // { x, y, elapsed, duration }
-      this.dropped     = new Set();
-      this.physBodies  = {};
+    // ── Figure ─────────────────────────────────────────────────────────────────
+    function Figure(px, floorY, name, scale) {
+      this.baseX   = px;
+      this.floorY  = floorY;
+      this.name    = name;
+      this.scale   = scale || 1.0;
+      this.t       = Math.random() * Math.PI * 2;
+      this.vy      = 0;
+      this.dy      = 0;
+      this.hitFlash   = null;
+      this.dropped    = new Set();
+      this.physBodies = {};
     }
 
     Figure.prototype.reset = function () {
-      this.t           = Math.random() * Math.PI * 2;
-      this.vy          = 0;
-      this.dy          = 0;
-      this.aimTarget   = null;
-      this.hitFlash    = null;
-      this.muzzleFlash = null;
+      this.t  = Math.random() * Math.PI * 2;
+      this.vy = 0; this.dy = 0;
+      this.hitFlash = null;
       this.dropped.clear();
-      this.physBodies  = {};
+      this.physBodies = {};
     };
 
     Figure.prototype.react = function () {
-      if (!this.dropped.has('leg-l') && !this.dropped.has('leg-r')) this.vy = -135;
-    };
-
-    Figure.prototype.aimAt = function (tx, ty, duration) {
-      this.aimTarget   = { x: tx, y: ty };
-      this.aimElapsed  = 0;
-      this.aimDuration = duration;
+      if (!this.dropped.has('leg-l') && !this.dropped.has('leg-r')) this.vy = -130;
     };
 
     Figure.prototype.update = function (dt) {
@@ -107,47 +105,28 @@
         this.dy += this.vy * dt;
         if (this.dy >= 0) { this.dy = 0; this.vy = 0; }
       }
-      if (this.aimTarget) {
-        this.aimElapsed += dt * 1000;
-        if (this.aimElapsed >= this.aimDuration) this.aimTarget = null;
-      }
       if (this.hitFlash) {
         this.hitFlash.elapsed += dt * 1000;
         if (this.hitFlash.elapsed >= this.hitFlash.duration) this.hitFlash = null;
       }
-      if (this.muzzleFlash) {
-        this.muzzleFlash.elapsed += dt * 1000;
-        if (this.muzzleFlash.elapsed >= this.muzzleFlash.duration) this.muzzleFlash = null;
-      }
     };
 
     Figure.prototype.getPose = function () {
+      const s  = this.scale;
       const t  = this.t;
       const sw = Math.sin(t * 0.7) * 2.5;
       const bx = this.baseX + sw;
-      const by = FLOOR_Y + this.dy;
-      const as = Math.sin(t * 0.9) * 6;
-      const ls = Math.sin(t * 0.6) * 5;
-
-      const pose = {
-        torso:  { x1: bx,      y1: by - 38, x2: bx,           y2: by - 78 },
-        head:   { cx: bx,      cy: by - 89, r: 10 },
-        'arm-l':{ x1: bx,      y1: by - 65, x2: bx - 18 + as, y2: by - 48 },
-        'arm-r':{ x1: bx,      y1: by - 65, x2: bx + 18 - as, y2: by - 48 },
-        'leg-l':{ x1: bx,      y1: by - 38, x2: bx - 12 - ls, y2: by },
-        'leg-r':{ x1: bx,      y1: by - 38, x2: bx + 12 + ls, y2: by },
+      const by = this.floorY + this.dy;
+      const as = Math.sin(t * 0.9) * 6 * s;
+      const ls = Math.sin(t * 0.6) * 5 * s;
+      return {
+        torso:  { x1: bx,      y1: by-38*s, x2: bx,           y2: by-78*s },
+        head:   { cx: bx,      cy: by-89*s, r: 10*s },
+        'arm-l':{ x1: bx,      y1: by-65*s, x2: bx-18*s+as,   y2: by-48*s },
+        'arm-r':{ x1: bx,      y1: by-65*s, x2: bx+18*s-as,   y2: by-48*s },
+        'leg-l':{ x1: bx,      y1: by-38*s, x2: bx-12*s-ls,   y2: by },
+        'leg-r':{ x1: bx,      y1: by-38*s, x2: bx+12*s+ls,   y2: by },
       };
-
-      // Aim arm-r toward target when host is firing
-      if (this.isHost && this.aimTarget && !this.dropped.has('arm-r')) {
-        const sx = pose['arm-r'].x1, sy = pose['arm-r'].y1;
-        const dx = this.aimTarget.x - sx, dy = this.aimTarget.y - sy;
-        const d  = Math.hypot(dx, dy) || 1;
-        pose['arm-r'].x2 = sx + (dx / d) * 22;
-        pose['arm-r'].y2 = sy + (dy / d) * 22;
-      }
-
-      return pose;
     };
 
     Figure.prototype.dropLimb = function (key) {
@@ -155,28 +134,25 @@
       this.dropped.add(key);
 
       const p = this.getPose();
+      const s = this.scale;
       let body;
 
       if (key === 'head') {
         body = Bodies.circle(p.head.cx, p.head.cy, p.head.r, {
           restitution: 0.55, friction: 0.4, frictionAir: 0.01,
         });
-        Body.setVelocity(body, { x: (Math.random() - 0.5) * 5, y: -5 });
+        Body.setVelocity(body, { x: (Math.random()-0.5)*5, y: -5 });
       } else {
         const l   = p[key];
-        const cx  = (l.x1 + l.x2) / 2;
-        const cy  = (l.y1 + l.y2) / 2;
-        const len = Math.hypot(l.x2 - l.x1, l.y2 - l.y1);
-        const ang = Math.atan2(l.y2 - l.y1, l.x2 - l.x1);
-        body = Bodies.rectangle(cx, cy, len, 5, {
+        const cx  = (l.x1+l.x2)/2, cy = (l.y1+l.y2)/2;
+        const len = Math.hypot(l.x2-l.x1, l.y2-l.y1);
+        const ang = Math.atan2(l.y2-l.y1, l.x2-l.x1);
+        body = Bodies.rectangle(cx, cy, len, 5*s, {
           angle: ang, restitution: 0.4, friction: 0.3, frictionAir: 0.008,
         });
         body.limbLength = len;
-        Body.setVelocity(body, {
-          x: (Math.random() - 0.5) * 8,
-          y: -(3 + Math.random() * 4),
-        });
-        Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.45);
+        Body.setVelocity(body, { x: (Math.random()-0.5)*8, y: -(3+Math.random()*4) });
+        Body.setAngularVelocity(body, (Math.random()-0.5)*0.45);
       }
 
       this.physBodies[key] = body;
@@ -185,173 +161,243 @@
 
     Figure.prototype.draw = function (ctx) {
       const p     = this.getPose();
-      const flash = this.hitFlash && (this.hitFlash.elapsed / this.hitFlash.duration) < 0.6;
+      const s     = this.scale;
+      const flash = this.hitFlash && (this.hitFlash.elapsed/this.hitFlash.duration) < 0.6;
       const ink   = flash ? '#e03030' : '#1a1a1a';
       const fill  = flash ? '#ffcccc' : '#f0ede4';
 
       ctx.save();
       ctx.strokeStyle = ink;
-      ctx.lineWidth   = 3;
+      ctx.lineWidth   = 3 * s;
       ctx.lineCap     = 'round';
 
-      // Torso
-      ctx.beginPath();
-      ctx.moveTo(p.torso.x1, p.torso.y1);
-      ctx.lineTo(p.torso.x2, p.torso.y2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.torso.x1,p.torso.y1); ctx.lineTo(p.torso.x2,p.torso.y2); ctx.stroke();
 
-      // Limbs
-      ['arm-l', 'arm-r', 'leg-l', 'leg-r'].forEach(k => {
+      ['arm-l','arm-r','leg-l','leg-r'].forEach(k => {
         if (this.dropped.has(k)) return;
-        ctx.beginPath();
-        ctx.moveTo(p[k].x1, p[k].y1);
-        ctx.lineTo(p[k].x2, p[k].y2);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(p[k].x1,p[k].y1); ctx.lineTo(p[k].x2,p[k].y2); ctx.stroke();
       });
 
-      // Gun barrel on arm-r (host only, arm still attached)
-      if (this.isHost && !this.dropped.has('arm-r')) {
-        const arm = p['arm-r'];
-        const dx  = arm.x2 - arm.x1, dy = arm.y2 - arm.y1;
-        const d   = Math.hypot(dx, dy) || 1;
-        const nx  = dx / d, ny = dy / d;
-        ctx.save();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth   = 5;
-        ctx.lineCap     = 'square';
-        ctx.beginPath();
-        ctx.moveTo(arm.x2, arm.y2);
-        ctx.lineTo(arm.x2 + nx * 10, arm.y2 + ny * 10);
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Muzzle flash
-      if (this.muzzleFlash) {
-        const mf  = this.muzzleFlash;
-        const age = mf.elapsed / mf.duration;
-        ctx.save();
-        ctx.globalAlpha = 1 - age;
-        ctx.fillStyle   = '#FFE600';
-        ctx.beginPath();
-        ctx.arc(mf.x, mf.y, (1 - age) * 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      // Head
       if (!this.dropped.has('head')) {
-        ctx.beginPath();
-        ctx.arc(p.head.cx, p.head.cy, p.head.r, 0, Math.PI * 2);
-        ctx.fillStyle = fill;
-        ctx.fill();
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.head.cx,p.head.cy,p.head.r,0,Math.PI*2);
+        ctx.fillStyle = fill; ctx.fill(); ctx.stroke();
       }
 
       // Physics limbs
-      Object.entries(this.physBodies).forEach(([k, b]) => {
+      Object.entries(this.physBodies).forEach(([k,b]) => {
         ctx.save();
-        if (k === 'head') {
-          ctx.beginPath();
-          ctx.arc(b.position.x, b.position.y, 10, 0, Math.PI * 2);
-          ctx.fillStyle   = '#f0ede4';
-          ctx.fill();
-          ctx.strokeStyle = '#1a1a1a';
-          ctx.lineWidth   = 3;
-          ctx.stroke();
+        if (k==='head') {
+          ctx.beginPath(); ctx.arc(b.position.x,b.position.y,10*s,0,Math.PI*2);
+          ctx.fillStyle='#f0ede4'; ctx.fill();
+          ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=3*s; ctx.stroke();
         } else {
-          const half = (b.limbLength || 18) / 2;
-          const cos  = Math.cos(b.angle), sin = Math.sin(b.angle);
+          const half=(b.limbLength||18)/2;
+          const cos=Math.cos(b.angle), sin=Math.sin(b.angle);
           ctx.beginPath();
-          ctx.moveTo(b.position.x - cos * half, b.position.y - sin * half);
-          ctx.lineTo(b.position.x + cos * half, b.position.y + sin * half);
-          ctx.strokeStyle = '#1a1a1a';
-          ctx.lineWidth   = 3;
-          ctx.lineCap     = 'round';
-          ctx.stroke();
+          ctx.moveTo(b.position.x-cos*half, b.position.y-sin*half);
+          ctx.lineTo(b.position.x+cos*half, b.position.y+sin*half);
+          ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=3*s; ctx.lineCap='round'; ctx.stroke();
         }
         ctx.restore();
       });
 
-      // Label
-      ctx.font      = 'bold 10px Courier New';
+      ctx.font      = `bold ${Math.round(10*s)}px Courier New`;
       ctx.fillStyle = '#1a1a1a';
       ctx.textAlign = 'center';
-      ctx.fillText(this.name + (this.isHost ? ' ★' : ''), this.baseX, FLOOR_Y + 20);
+      ctx.fillText(this.name, this.baseX, this.floorY + 18);
       ctx.restore();
     };
 
-    // ── Figures ────────────────────────────────────────────────────────────────
+    // ── FATE Villain ───────────────────────────────────────────────────────────
+    function FateVillain(x, startY) {
+      this.x           = x;
+      this.y           = startY;
+      this.targetY     = startY;
+      this.startY      = startY;
+      this.t           = 0;
+      this.aimTarget   = null;
+      this.aimElapsed  = 0;
+      this.aimDuration = 0;
+      this.muzzleFlash = null;
+    }
+
+    FateVillain.prototype.reset = function () {
+      this.y = this.startY; this.targetY = this.startY;
+      this.t = 0; this.aimTarget = null; this.muzzleFlash = null;
+    };
+
+    FateVillain.prototype.aimAt = function (tx, ty, dur) {
+      this.aimTarget = { x: tx, y: ty };
+      this.aimElapsed = 0; this.aimDuration = dur;
+    };
+
+    FateVillain.prototype.update = function (dt) {
+      this.t += dt;
+      // Slide between rows
+      const gap = this.targetY - this.y;
+      if (Math.abs(gap) > 0.5) this.y += gap * Math.min(7 * dt, 1);
+      else this.y = this.targetY;
+
+      if (this.aimTarget) {
+        this.aimElapsed += dt * 1000;
+        if (this.aimElapsed >= this.aimDuration) this.aimTarget = null;
+      }
+      if (this.muzzleFlash) {
+        this.muzzleFlash.elapsed += dt * 1000;
+        if (this.muzzleFlash.elapsed >= this.muzzleFlash.duration) this.muzzleFlash = null;
+      }
+    };
+
+    FateVillain.prototype.getPose = function () {
+      const S  = 1.15; // FATE is slightly larger
+      const t  = this.t;
+      const sw = Math.sin(t * 0.35) * 1.5; // slow menacing sway
+      const bx = this.x + sw;
+      const by = this.y;
+
+      const pose = {
+        torso:  { x1: bx,      y1: by-38*S, x2: bx,        y2: by-78*S },
+        head:   { cx: bx,      cy: by-89*S, r: 10*S },
+        'arm-l':{ x1: bx,      y1: by-65*S, x2: bx-18*S,   y2: by-52*S },
+        'arm-r':{ x1: bx,      y1: by-65*S, x2: bx+20*S,   y2: by-60*S }, // semi-raised, gun ready
+        'leg-l':{ x1: bx,      y1: by-38*S, x2: bx-12*S,   y2: by },
+        'leg-r':{ x1: bx,      y1: by-38*S, x2: bx+12*S,   y2: by },
+      };
+
+      if (this.aimTarget) {
+        const sx = pose['arm-r'].x1, sy = pose['arm-r'].y1;
+        const dx = this.aimTarget.x - sx, dy = this.aimTarget.y - sy;
+        const d  = Math.hypot(dx, dy) || 1;
+        pose['arm-r'].x2 = sx + (dx/d) * 24;
+        pose['arm-r'].y2 = sy + (dy/d) * 24;
+      }
+
+      return pose;
+    };
+
+    FateVillain.prototype.draw = function (ctx) {
+      const S  = 1.15;
+      const p  = this.getPose();
+      const by = this.y;
+
+      ctx.save();
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth   = 3.5;
+      ctx.lineCap     = 'round';
+
+      // Torso + limbs
+      ctx.beginPath(); ctx.moveTo(p.torso.x1,p.torso.y1); ctx.lineTo(p.torso.x2,p.torso.y2); ctx.stroke();
+      ['arm-l','arm-r','leg-l','leg-r'].forEach(k => {
+        ctx.beginPath(); ctx.moveTo(p[k].x1,p[k].y1); ctx.lineTo(p[k].x2,p[k].y2); ctx.stroke();
+      });
+
+      // Gun barrel
+      const arm = p['arm-r'];
+      const adx = arm.x2-arm.x1, ady = arm.y2-arm.y1;
+      const ad  = Math.hypot(adx,ady)||1;
+      const anx = adx/ad, any = ady/ad;
+      ctx.save();
+      ctx.strokeStyle='#111'; ctx.lineWidth=6; ctx.lineCap='square';
+      ctx.beginPath();
+      ctx.moveTo(arm.x2, arm.y2);
+      ctx.lineTo(arm.x2+anx*13, arm.y2+any*13);
+      ctx.stroke();
+      ctx.restore();
+
+      // Muzzle flash
+      if (this.muzzleFlash) {
+        const mf=this.muzzleFlash, age=mf.elapsed/mf.duration;
+        ctx.save();
+        ctx.globalAlpha=1-age; ctx.fillStyle='#FFE600';
+        ctx.beginPath(); ctx.arc(mf.x,mf.y,(1-age)*12,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+
+      // Head
+      ctx.beginPath(); ctx.arc(p.head.cx,p.head.cy,p.head.r,0,Math.PI*2);
+      ctx.fillStyle='#ddd'; ctx.fill(); ctx.stroke();
+
+      // Top hat
+      const hcx=p.head.cx, hcy=p.head.cy, hr=p.head.r;
+      ctx.save();
+      ctx.fillStyle='#111'; ctx.strokeStyle='#111'; ctx.lineWidth=1;
+      ctx.fillRect(hcx-hr*1.7, hcy-hr-4, hr*3.4, 5);          // brim
+      ctx.fillRect(hcx-hr*1.05, hcy-hr-4-hr*2.4, hr*2.1, hr*2.4); // crown
+      ctx.restore();
+
+      // Label
+      ctx.font='bold 11px Courier New'; ctx.fillStyle='#cc0000'; ctx.textAlign='center';
+      ctx.fillText('FATE', this.x, by + 20);
+      ctx.restore();
+    };
+
+    // ── Scene setup ────────────────────────────────────────────────────────────
+    // 3 per row, evenly spaced in zone starting at PLAYER_START_X
+    const zoneW   = W - PLAYER_START_X - 20;
+    const spacing = zoneW / 3;
+    const col     = i => PLAYER_START_X + spacing * i + spacing / 2;
+
     const figs = [
-      new Figure(175, 'ABHI', true),
-      new Figure(350, 'SAM',  false),
-      new Figure(525, 'MIA',  false),
+      new Figure(col(0), ROW1_Y, 'ABHI ★', 1.0),
+      new Figure(col(1), ROW1_Y, 'SAM',    1.0),
+      new Figure(col(2), ROW1_Y, 'MIA',    1.0),
+      new Figure(col(0), ROW2_Y, 'KAI',    1.0),
+      new Figure(col(1), ROW2_Y, 'LEO',    1.0),
+      new Figure(col(2), ROW2_Y, 'ZOE',    1.0),
     ];
 
-    // ── Bullets + impacts ─────────────────────────────────────────────────────
+    const fate = new FateVillain(FATE_X, ROW1_Y);
+
+    // ── Bullets + impacts ──────────────────────────────────────────────────────
     const bullets = [];
     const impacts = [];
 
-    // ── Shoot queue ────────────────────────────────────────────────────────────
-    let shootQueue = [];
-    let shootBusy  = false;
+    // ── Shoot queue — FATE walks to the right row, then fires ──────────────────
+    let shootQueue    = [];
+    let shootBusy     = false;
+    let pendingTarget = null;
 
     function queueShot(fig) {
       shootQueue.push(fig);
-      if (!shootBusy) drainQueue();
+      if (!shootBusy) processPending();
     }
 
-    function drainQueue() {
+    function processPending() {
       if (!shootQueue.length) { shootBusy = false; return; }
-      shootBusy = true;
-      const target = shootQueue.shift();
-      const host   = figs.find(f => f.isHost);
-      if (host) fireAt(host, target);
-      else drainQueue();
+      shootBusy     = true;
+      pendingTarget = shootQueue.shift();
+      fate.targetY  = pendingTarget.floorY; // FATE starts walking
     }
 
-    function fireAt(host, target) {
-      // Determine aim point: next limb to be dropped on the target
+    function fireAt(target) {
       const avail = LIMB_KEYS.filter(k => !target.dropped.has(k));
-      if (!avail.length) { setTimeout(drainQueue, 100); return; }
+      if (!avail.length) { setTimeout(processPending, 100); return; }
 
       const nextKey = avail[0];
       const tp = target.getPose();
-      let tx, ty;
-      if (nextKey === 'head') {
-        tx = tp.head.cx; ty = tp.head.cy;
-      } else {
-        tx = (tp[nextKey].x1 + tp[nextKey].x2) / 2;
-        ty = (tp[nextKey].y1 + tp[nextKey].y2) / 2;
-      }
+      const tx = nextKey === 'head' ? tp.head.cx : (tp[nextKey].x1+tp[nextKey].x2)/2;
+      const ty = nextKey === 'head' ? tp.head.cy : (tp[nextKey].y1+tp[nextKey].y2)/2;
 
-      // Aim host arm then re-read pose to get aimed gun tip
-      host.aimAt(tx, ty, 650);
-      const hp  = host.getPose();
-      const arm = hp['arm-r'];
+      fate.aimAt(tx, ty, 700);
+      const fp  = fate.getPose();
+      const arm = fp['arm-r'];
+      const adx = arm.x2-arm.x1, ady = arm.y2-arm.y1;
+      const ad  = Math.hypot(adx,ady)||1;
+      const anx = adx/ad, any = ady/ad;
+      const gx  = arm.x2 + anx*13;
+      const gy  = arm.y2 + any*13;
 
-      // Gun tip = arm tip + barrel extension
-      const dx = arm.x2 - arm.x1, dy = arm.y2 - arm.y1;
-      const d  = Math.hypot(dx, dy) || 1;
-      const nx = dx / d, ny = dy / d;
-      const gx = arm.x2 + nx * 10;
-      const gy = arm.y2 + ny * 10;
+      fate.muzzleFlash = { x: gx, y: gy, elapsed: 0, duration: 140 };
 
-      host.muzzleFlash = { x: gx, y: gy, elapsed: 0, duration: 130 };
-
-      // Direction from gun tip to target
-      const bx = tx - gx, by = ty - gy;
-      const bd = Math.hypot(bx, by) || 1;
+      const bvx = tx-gx, bvy = ty-gy;
+      const bd  = Math.hypot(bvx,bvy)||1;
 
       bullets.push({
         x: gx, y: gy,
-        nx: bx / bd, ny: by / bd,
-        speed: 560,
-        target,
-        nextKey,
-        tx, ty,
-        traveled: 0,
-        maxDist: bd + 20,
+        nx: bvx/bd, ny: bvy/bd,
+        speed: 580,
+        target, nextKey, tx, ty,
+        traveled: 0, maxDist: bd+25,
         done: false,
       });
     }
@@ -359,73 +405,84 @@
     // ── Render loop ────────────────────────────────────────────────────────────
     let last = performance.now();
     (function loop(now) {
-      const dt = Math.min((now - last) / 1000, 0.05);
+      const dt = Math.min((now-last)/1000, 0.05);
       last = now;
 
       ctx.clearRect(0, 0, W, H);
 
-      ctx.fillStyle = '#d8d4c8';
-      ctx.fillRect(0, FLOOR_Y, W, H - FLOOR_Y);
-      ctx.fillStyle = '#a09890';
-      ctx.fillRect(0, FLOOR_Y, W, 2);
+      // Background
+      ctx.fillStyle = '#f0ede4';
+      ctx.fillRect(0, 0, W, H);
 
-      figs.forEach(f => { f.update(dt); f.draw(ctx); });
+      // FATE zone divider
+      ctx.fillStyle = '#e4e0d4';
+      ctx.fillRect(0, 0, PLAYER_START_X - 12, H);
+      ctx.fillStyle = '#c8c0b0';
+      ctx.fillRect(PLAYER_START_X - 13, 0, 2, H);
+
+      // Row floor lines
+      [ROW1_Y, ROW2_Y].forEach(ry => {
+        ctx.fillStyle = '#c0b090';
+        ctx.fillRect(PLAYER_START_X - 10, ry, W - PLAYER_START_X + 10, 3);
+      });
+
+      // FATE's current floor line (moves with FATE)
+      ctx.fillStyle = '#c0b090';
+      ctx.fillRect(0, Math.round(fate.y), PLAYER_START_X - 10, 3);
+
+      // Update
+      fate.update(dt);
+      figs.forEach(f => f.update(dt));
+
+      // Fire when FATE arrives at target row
+      if (pendingTarget && Math.abs(fate.y - fate.targetY) < 3) {
+        fireAt(pendingTarget);
+        pendingTarget = null;
+      }
+
+      // Draw figures (back row first)
+      figs.filter(f => f.floorY === ROW2_Y).forEach(f => f.draw(ctx));
+      figs.filter(f => f.floorY === ROW1_Y).forEach(f => f.draw(ctx));
+      fate.draw(ctx);
 
       // Bullets
-      for (let i = bullets.length - 1; i >= 0; i--) {
+      for (let i = bullets.length-1; i >= 0; i--) {
         const b = bullets[i];
-        if (b.done) { bullets.splice(i, 1); continue; }
-
-        const step = b.speed * dt;
-        b.x        += b.nx * step;
-        b.y        += b.ny * step;
-        b.traveled += step;
-
-        const hit = Math.hypot(b.tx - b.x, b.ty - b.y) < 10 || b.traveled >= b.maxDist;
-        if (hit) {
+        if (b.done) { bullets.splice(i,1); continue; }
+        b.x += b.nx*b.speed*dt; b.y += b.ny*b.speed*dt; b.traveled += b.speed*dt;
+        if (Math.hypot(b.tx-b.x, b.ty-b.y) < 10 || b.traveled >= b.maxDist) {
           b.done = true;
           b.target.dropLimb(b.nextKey);
           b.target.hitFlash = { elapsed: 0, duration: 200 };
-          impacts.push({ x: b.tx, y: b.ty, elapsed: 0, duration: 350 });
-          setTimeout(drainQueue, 320);
+          impacts.push({ x: b.tx, y: b.ty, elapsed: 0, duration: 360 });
+          setTimeout(processPending, 340);
         }
       }
 
-      // Draw bullets
       bullets.forEach(b => {
         ctx.save();
-        ctx.strokeStyle = '#c00';
-        ctx.lineWidth   = 2;
-        ctx.lineCap     = 'round';
-        ctx.beginPath();
-        ctx.moveTo(b.x - b.nx * 12, b.y - b.ny * 12);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-        ctx.fillStyle = '#ff2200';
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.strokeStyle='#c00'; ctx.lineWidth=2; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(b.x-b.nx*13, b.y-b.ny*13); ctx.lineTo(b.x, b.y); ctx.stroke();
+        ctx.fillStyle='#ff2200';
+        ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
         ctx.restore();
       });
 
       // Impact bursts
-      for (let i = impacts.length - 1; i >= 0; i--) {
+      for (let i = impacts.length-1; i >= 0; i--) {
         const imp = impacts[i];
-        imp.elapsed += dt * 1000;
-        if (imp.elapsed >= imp.duration) { impacts.splice(i, 1); continue; }
-
-        const age   = imp.elapsed / imp.duration;
-        const sz    = age * 20;
-        const alpha = 1 - age;
+        imp.elapsed += dt*1000;
+        if (imp.elapsed >= imp.duration) { impacts.splice(i,1); continue; }
+        const age = imp.elapsed/imp.duration;
+        const sz  = age*22;
         ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.strokeStyle = '#FFE600';
-        ctx.lineWidth   = 2.5;
+        ctx.globalAlpha = 1-age;
+        ctx.strokeStyle = '#FFE600'; ctx.lineWidth = 2.5;
         for (let a = 0; a < 6; a++) {
-          const angle = (a / 6) * Math.PI * 2 + age * 0.5;
+          const angle = (a/6)*Math.PI*2 + age*0.4;
           ctx.beginPath();
-          ctx.moveTo(imp.x + Math.cos(angle) * sz * 0.3, imp.y + Math.sin(angle) * sz * 0.3);
-          ctx.lineTo(imp.x + Math.cos(angle) * sz,       imp.y + Math.sin(angle) * sz);
+          ctx.moveTo(imp.x+Math.cos(angle)*sz*0.3, imp.y+Math.sin(angle)*sz*0.3);
+          ctx.lineTo(imp.x+Math.cos(angle)*sz,     imp.y+Math.sin(angle)*sz);
           ctx.stroke();
         }
         ctx.restore();
@@ -435,17 +492,16 @@
     })(last);
 
     // ── Controls ──────────────────────────────────────────────────────────────
-    document.getElementById('btnHitSelf').onclick = () => queueShot(figs[0]);
-    document.getElementById('btnHitSam').onclick  = () => queueShot(figs[1]);
-    document.getElementById('btnHitMia').onclick  = () => queueShot(figs[2]);
-    document.getElementById('btnHitAll').onclick  = () => figs.forEach(f => queueShot(f));
-    document.getElementById('btnReact').onclick   = () => figs.forEach(f => f.react());
-    document.getElementById('btnReset').onclick   = () => {
+    document.querySelectorAll('button[data-idx]').forEach(btn => {
+      btn.onclick = () => queueShot(figs[+btn.dataset.idx]);
+    });
+    document.getElementById('btnAll').onclick   = () => figs.forEach(f => queueShot(f));
+    document.getElementById('btnReact').onclick = () => figs.forEach(f => f.react());
+    document.getElementById('btnReset').onclick = () => {
       figs.forEach(f => f.reset());
-      bullets.length = 0;
-      impacts.length = 0;
-      shootQueue     = [];
-      shootBusy      = false;
+      fate.reset();
+      bullets.length = 0; impacts.length = 0;
+      shootQueue = []; shootBusy = false; pendingTarget = null;
       World.clear(engine.world, true);
     };
   })();
