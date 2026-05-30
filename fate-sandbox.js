@@ -13,6 +13,56 @@ window.FateSandbox = (() => {
   const FATE_X      = 52;
   const PLAYER_START_X = 108;
 
+  // ── Audio ──────────────────────────────────────────────────────────────────
+  let audioCtx = null;
+  let muted = false;
+  const gunshotAudio = new Audio('sounds/gunshot.mp3');
+  gunshotAudio.preload = 'auto';
+
+  function sfx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function playGunshot() {
+    if (muted) return;
+    try { const s = gunshotAudio.cloneNode(); s.volume = 0.8; s.play(); } catch(e) {}
+  }
+
+  function playImpact() {
+    if (muted) return;
+    try {
+      const ctx = sfx(), t = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      osc.frequency.setValueAtTime(90, t);
+      osc.frequency.exponentialRampToValueAtTime(28, t + 0.18);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.8, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.25);
+    } catch(e) {}
+  }
+
+  function playElimination() {
+    if (muted) return;
+    try {
+      const ctx = sfx(), t = ctx.currentTime;
+      [0, 0.18, 0.38].forEach((delay, i) => {
+        const freq = [392, 311, 233][i];
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth'; osc.frequency.value = freq;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t + delay);
+        g.gain.linearRampToValueAtTime(0.28, t + delay + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.32);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(t + delay); osc.stop(t + delay + 0.38);
+      });
+    } catch(e) {}
+  }
+
   const FATE_TAUNTS = [
     "Nothing personal, {name}.",
     "{name}. Say goodbye.",
@@ -247,14 +297,19 @@ window.FateSandbox = (() => {
   };
 
   // ── FateVillain ───────────────────────────────────────────────────────────
+  const IDLE_ACTIONS = ['look-right', 'hat-tip', 'foot-tap'];
+
   function FateVillain(x, startY) {
     this.x=x; this.y=startY; this.targetY=startY; this.startY=startY;
     this.t=0; this.aimTarget=null; this.aimElapsed=0; this.aimDuration=0; this.muzzleFlash=null;
     this.bubble=null;
+    this.idleAction=null; this.idleProgress=0; this.idleDuration=0;
+    this.idleTimer=2+Math.random()*4;
   }
 
   FateVillain.prototype.reset = function () {
     this.y=this.startY; this.targetY=this.startY; this.t=0; this.aimTarget=null; this.muzzleFlash=null; this.bubble=null;
+    this.idleAction=null; this.idleProgress=0; this.idleTimer=2+Math.random()*4;
   };
 
   FateVillain.prototype.say = function (text) {
@@ -272,6 +327,21 @@ window.FateSandbox = (() => {
     if (this.aimTarget) { this.aimElapsed+=dt*1000; if (this.aimElapsed>=this.aimDuration) this.aimTarget=null; }
     if (this.muzzleFlash) { this.muzzleFlash.elapsed+=dt*1000; if (this.muzzleFlash.elapsed>=this.muzzleFlash.duration) this.muzzleFlash=null; }
     if (this.bubble) { this.bubble.life-=dt; if (this.bubble.life<=0) this.bubble=null; }
+
+    const standing = Math.abs(gap) < 3 && !this.aimTarget;
+    if (standing) {
+      if (this.idleAction) {
+        this.idleProgress += dt / this.idleDuration;
+        if (this.idleProgress >= 1) { this.idleAction=null; this.idleTimer=1+Math.random()*2.5; }
+      } else {
+        this.idleTimer -= dt;
+        if (this.idleTimer <= 0) {
+          this.idleAction = IDLE_ACTIONS[Math.floor(Math.random()*IDLE_ACTIONS.length)];
+          this.idleDuration = this.idleAction==='foot-tap' ? 0.9 : 0.7+Math.random()*0.3;
+          this.idleProgress = 0;
+        }
+      }
+    }
   };
 
   FateVillain.prototype.getPose = function () {
@@ -289,6 +359,31 @@ window.FateSandbox = (() => {
       const sx=pose['arm-r'].x1, sy=pose['arm-r'].y1;
       const dx=this.aimTarget.x-sx, dy=this.aimTarget.y-sy, d=Math.hypot(dx,dy)||1;
       pose['arm-r'].x2=sx+(dx/d)*24; pose['arm-r'].y2=sy+(dy/d)*24;
+    } else if (this.idleAction) {
+      // snap in fast, hold, snap out fast — feels intentional not robotic
+      const p=this.idleProgress;
+      const ease = p<0.18 ? p/0.18 : p>0.82 ? (1-p)/0.18 : 1;
+      if (this.idleAction==='look-right') {
+        // arm shields eyes, torso leans into it
+        pose['arm-l'].x2 = pose['arm-l'].x1 + 24*S*ease;
+        pose['arm-l'].y2 = pose['arm-l'].y1 - 14*S*ease;
+        pose.torso.x2 += 4*S*ease;   // top of torso leans right
+        pose.head.cx  += 4*S*ease;   // head follows
+      } else if (this.idleAction==='hat-tip') {
+        // arm-r snaps up to brim, other arm drops, slight bow
+        const tx=pose.head.cx+5, ty=pose.head.cy-pose.head.r;
+        pose['arm-r'].x2 += (tx-pose['arm-r'].x2)*ease;
+        pose['arm-r'].y2 += (ty-pose['arm-r'].y2)*ease;
+        pose['arm-l'].y2 += 8*S*ease; // left arm drops naturally
+        pose.torso.x2   -= 3*S*ease; // slight forward bow
+        pose.head.cx    -= 3*S*ease;
+      } else if (this.idleAction==='foot-tap') {
+        // 5 sharp taps — percussive, impatient
+        const tap=Math.max(0,Math.sin(p*Math.PI*5))*14*S;
+        pose['leg-r'].y2 -= tap;
+        pose['leg-r'].x2 -= tap*0.5;
+        pose.torso.x1   -= tap*0.1; // hip shifts slightly
+      }
     }
     return pose;
   };
@@ -422,6 +517,7 @@ window.FateSandbox = (() => {
     const adx=arm.x2-arm.x1, ady=arm.y2-arm.y1, ad=Math.hypot(adx,ady)||1;
     const gx=arm.x2+(adx/ad)*13, gy=arm.y2+(ady/ad)*13;
     fate.muzzleFlash={ x:gx, y:gy, elapsed:0, duration:140 };
+    playGunshot();
     shake=Math.max(shake,5);
     const bvx=tx-gx, bvy=ty-gy, bd=Math.hypot(bvx,bvy)||1;
     bullets.push({ x:gx, y:gy, nx:bvx/bd, ny:bvy/bd, speed:bd/0.28,
@@ -487,6 +583,7 @@ window.FateSandbox = (() => {
         b.target.hitFlash={ elapsed:0, duration:200 };
         if (b.target.onHit) b.target.onHit();
         impacts.push({ x:b.tx, y:b.ty, elapsed:0, duration:360 });
+        playImpact();
         shake=Math.max(shake,12);
         for (let j=0;j<14;j++) {
           const ang=Math.random()*Math.PI*2, spd=60+Math.random()*160;
@@ -496,6 +593,7 @@ window.FateSandbox = (() => {
         const eliminated = LIMB_KEYS.every(k=>b.target.dropped.has(k));
         if (eliminated) {
           timeScale=0.15;
+          playElimination();
           popups.push({ x:b.target.baseX, y:b.target.floorY-60, vy:-70, life:1.5 });
           if (commentaryFn) commentaryFn('eliminated', { name: b.target.name });
         } else {
@@ -611,6 +709,7 @@ window.FateSandbox = (() => {
   }
 
   function setCommentary(fn) { commentaryFn = fn; }
+  function setMuted(val) { muted = val; }
 
-  return { init, queueShot, syncState, reset, setCommentary };
+  return { init, queueShot, syncState, reset, setCommentary, setMuted };
 })();

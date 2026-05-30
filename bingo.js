@@ -77,6 +77,34 @@ function renderScoreboard() {
       </div>`).join('');
 }
 
+// ── Roll sounds ──────────────────────────────────────────────────────────────
+const snareRollAudio = new Audio('sounds/snare-roll.mp3');
+snareRollAudio.preload = 'auto';
+let rollCtx = null;
+function getRollCtx() {
+  if (!rollCtx) rollCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (rollCtx.state === 'suspended') rollCtx.resume();
+  return rollCtx;
+}
+function isSoundMuted() { return document.getElementById('muteBtn')?.classList.contains('muted') ?? false; }
+
+let _snareInstance = null;
+function playRollTick(index) {
+  if (isSoundMuted()) return;
+  if (index === 1) {
+    try {
+      _snareInstance = snareRollAudio.cloneNode();
+      _snareInstance.volume = 0.7;
+      _snareInstance.loop = true;
+      _snareInstance.play();
+    } catch(e) {}
+  }
+}
+
+function playRollLand() {
+  if (_snareInstance) { _snareInstance.pause(); _snareInstance = null; }
+}
+
 function showCommentary(type, data) {
   const bar = document.getElementById('commentaryBar');
   if (!bar) return;
@@ -462,6 +490,7 @@ function setRollDisplay(number, status, rolling = false) {
       numberEl.classList.add('roll-flick');
     } else if (wasRolling && number && number !== '--') {
       numberEl.classList.add('roll-impact');
+      playRollLand();
     }
   }
 
@@ -485,6 +514,7 @@ function playNumberRoll({ sequence = [], durationMs = 1800 } = {}) {
   const intervalMs = Math.max(60, Math.floor(durationMs / sequence.length));
 
   setRollDisplay(sequence[0], 'Rolling...', true);
+  playRollTick(1);
   if (window.BingoCaller && typeof window.BingoCaller.setRollEnabled === 'function') {
     window.BingoCaller.setRollEnabled(false);
   }
@@ -493,7 +523,6 @@ function playNumberRoll({ sequence = [], durationMs = 1800 } = {}) {
     index += 1;
     const value = sequence[Math.min(index, sequence.length - 1)];
     setRollDisplay(value, 'Rolling...', true);
-
     if (index >= sequence.length - 1) {
       clearInterval(state.rollTimer);
       state.rollTimer = null;
@@ -919,6 +948,23 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('joinRoom')?.addEventListener('click', joinRoom);
   document.getElementById('playerReset')?.addEventListener('click', resetPlayerBoard);
   document.getElementById('leaveRoom')?.addEventListener('click', leaveRoom);
+
+  document.getElementById('muteBtn')?.addEventListener('click', () => {
+    const btn = document.getElementById('muteBtn');
+    const muted = btn.classList.toggle('muted');
+    if (window.FateSandbox) FateSandbox.setMuted(muted);
+    const paths = btn.querySelectorAll('path');
+    paths.forEach(p => p.style.display = muted ? 'none' : '');
+    if (muted) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1','1'); line.setAttribute('y1','1');
+      line.setAttribute('x2','23'); line.setAttribute('y2','23');
+      line.id = 'mute-x';
+      btn.querySelector('svg').appendChild(line);
+    } else {
+      btn.querySelector('#mute-x')?.remove();
+    }
+  });
 
   document.getElementById('copyRoomCode')?.addEventListener('click', () => {
     if (!state.roomCode) return;
