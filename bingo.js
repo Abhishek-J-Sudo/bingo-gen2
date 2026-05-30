@@ -17,6 +17,7 @@ const state = {
 };
 
 const droppedLimbs = new Set(); // `${playerId}-${limbIndex}` — tracks animated limbs
+const sessionWins  = {};        // { playerId → { name, wins } } — persists across resets
 
 const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
 
@@ -61,6 +62,20 @@ const COMMENTARY = {
     '{name}: eliminated. FATE: satisfied.',
   ],
 };
+
+function renderScoreboard() {
+  const el = document.getElementById('scoreboard');
+  if (!el) return;
+  const rows = Object.values(sessionWins).sort((a, b) => b.wins - a.wins);
+  if (!rows.length) { el.innerHTML = ''; return; }
+  const maxWins = rows[0].wins;
+  el.innerHTML = '<div class="scoreboard-title">Score</div>' +
+    rows.map(r => `
+      <div class="scoreboard-row${r.wins === maxWins ? ' leader' : ''}">
+        <span class="scoreboard-name">${r.name}</span>
+        <span class="scoreboard-wins">${r.wins}</span>
+      </div>`).join('');
+}
 
 function showCommentary(type, data) {
   const bar = document.getElementById('commentaryBar');
@@ -518,6 +533,11 @@ function applyRoomState(roomState) {
   state.players = roomState.players || state.players;
   if (roomState.dangerNumbers) state.dangerNumbers = roomState.dangerNumbers;
 
+  (state.players || []).forEach(p => {
+    if (!sessionWins[p.id]) sessionWins[p.id] = { name: p.name, wins: 0 };
+  });
+  renderScoreboard();
+
   localStorage.setItem('bingoRoomCode', state.roomCode);
 
   setRoomLabel();
@@ -615,6 +635,11 @@ function connectSocket(code) {
       }
     });
     state.socket.on('winner-added', (roomState) => {
+      (roomState.winners || []).forEach(w => {
+        if (!sessionWins[w.id]) sessionWins[w.id] = { name: w.name, wins: 0 };
+        if (!state.winners.find(v => v.id === w.id)) sessionWins[w.id].wins++;
+      });
+      renderScoreboard();
       applyRoomState(roomState);
       celebrateNewWinners(roomState.winners || []);
     });

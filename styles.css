@@ -577,6 +577,59 @@ img[data-limb="leg-r"] { transform-origin: 43% 57%; }
   justify-content: center;
 }
 
+.scoreboard-panel {
+  display: none;
+  width: 100px;
+  flex-shrink: 0;
+  border: var(--b3);
+  background: var(--white);
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.scoreboard-panel:empty { display: none; }
+
+.scoreboard-title {
+  padding: 5px 8px;
+  background: var(--black);
+  color: var(--white);
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.scoreboard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px;
+  border-top: 1px solid #ddd;
+  gap: 4px;
+}
+
+.scoreboard-row:first-of-type { border-top: none; }
+
+.scoreboard-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.scoreboard-wins {
+  font-size: 15px;
+  font-family: 'Bangers', cursive;
+  color: var(--black);
+  flex-shrink: 0;
+}
+
+.scoreboard-row.leader .scoreboard-wins { color: #cc0000; }
+
 .board-column {
   display: grid;
   justify-items: center;
