@@ -395,7 +395,7 @@
       bullets.push({
         x: gx, y: gy,
         nx: bvx/bd, ny: bvy/bd,
-        speed: 580,
+        speed: bd / 0.28,        // fixed 280ms travel time regardless of distance
         target, nextKey, tx, ty,
         traveled: 0, maxDist: bd+25,
         done: false,
