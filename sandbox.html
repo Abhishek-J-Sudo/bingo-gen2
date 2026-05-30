@@ -141,7 +141,7 @@
         body = Bodies.circle(p.head.cx, p.head.cy, p.head.r, {
           restitution: 0.55, friction: 0.4, frictionAir: 0.01,
         });
-        Body.setVelocity(body, { x: (Math.random()-0.5)*5, y: -5 });
+        Body.setVelocity(body, { x: (Math.random()-0.5)*14, y: -14 });
       } else {
         const l   = p[key];
         const cx  = (l.x1+l.x2)/2, cy = (l.y1+l.y2)/2;
@@ -151,8 +151,8 @@
           angle: ang, restitution: 0.4, friction: 0.3, frictionAir: 0.008,
         });
         body.limbLength = len;
-        Body.setVelocity(body, { x: (Math.random()-0.5)*8, y: -(3+Math.random()*4) });
-        Body.setAngularVelocity(body, (Math.random()-0.5)*0.45);
+        Body.setVelocity(body, { x: (Math.random()-0.5)*18, y: -(8+Math.random()*10) });
+        Body.setAngularVelocity(body, (Math.random()-0.5)*1.2);
       }
 
       this.physBodies[key] = body;
@@ -209,9 +209,8 @@
     };
 
     // ── FlexFigure — rubber-band bezier prototype ──────────────────────────────
-    function FlexFigure(px, floorY, name, scale) {
+    function FlexFigure(px, floorY, name, scale, poses) {
       Figure.call(this, px, floorY, name, scale);
-      // Per-limb bend springs: b=bend offset (px, perpendicular), v=velocity
       this.bends = {
         torso:  { b:0, v:0, freq:0.5, amp:3,  phase:0.0 },
         'arm-l':{ b:0, v:0, freq:1.1, amp:6,  phase:1.2 },
@@ -219,6 +218,9 @@
         'leg-l':{ b:0, v:0, freq:0.7, amp:5,  phase:0.6 },
         'leg-r':{ b:0, v:0, freq:0.7, amp:5,  phase:1.9 },
       };
+      this.poses   = poses || null;
+      this.poseIdx = 0;
+      this.poseT   = 0;
     }
     FlexFigure.prototype = Object.create(Figure.prototype);
     FlexFigure.prototype.constructor = FlexFigure;
@@ -226,6 +228,8 @@
     FlexFigure.prototype.reset = function () {
       Figure.prototype.reset.call(this);
       Object.values(this.bends).forEach(s => { s.b = 0; s.v = 0; });
+      this.poseIdx = 0;
+      this.poseT   = 0;
     };
 
     FlexFigure.prototype.react = function () {
@@ -235,6 +239,13 @@
 
     FlexFigure.prototype.update = function (dt) {
       Figure.prototype.update.call(this, dt);
+      if (this.poses) {
+        this.poseT += dt * 1000;
+        if (this.poseT >= this.poses[this.poseIdx].dur) {
+          this.poseT -= this.poses[this.poseIdx].dur;
+          this.poseIdx = (this.poseIdx + 1) % this.poses.length;
+        }
+      }
       const stiffness = 55, damping = 4.5;
       Object.values(this.bends).forEach(s => {
         const target = Math.sin(this.t * s.freq + s.phase) * s.amp;
@@ -286,6 +297,38 @@
         'arm-r':{ x1: bx,  y1: shoulderY, x2: ar_x, y2: ar_y  },
         'leg-l':{ x1: bx,  y1: hipY,      x2: ll_x, y2: ll_y  },
         'leg-r':{ x1: bx,  y1: hipY,      x2: lr_x, y2: lr_y  },
+      };
+    };
+
+    // Pose-keyframe idle — active when this.poses is set
+    FlexFigure.prototype.getPose = function () {
+      if (!this.poses) return Figure.prototype.getPose.call(this);
+
+      const s   = this.scale;
+      const bx  = this.baseX;
+      const by  = this.floorY + this.dy;
+      const cur = this.poses[this.poseIdx];
+      const nxt = this.poses[(this.poseIdx + 1) % this.poses.length];
+      const raw = Math.min(this.poseT / cur.dur, 1);
+      const t   = raw * raw * (3 - 2 * raw);  // smoothstep ease in/out
+      const lp  = (a, b) => a + (b - a) * t;
+
+      const sway = lp(cur.sway,      nxt.sway)      * s;
+      const alDx = lp(cur.armL[0],   nxt.armL[0])   * s;
+      const alDy = lp(cur.armL[1],   nxt.armL[1])   * s;
+      const arDx = lp(cur.armR[0],   nxt.armR[0])   * s;
+      const arDy = lp(cur.armR[1],   nxt.armR[1])   * s;
+      const llDx = lp(cur.legL,      nxt.legL)      * s;
+      const lrDx = lp(cur.legR,      nxt.legR)      * s;
+
+      const ux = bx + sway;  // upper body x (head, torso top, shoulder)
+      return {
+        torso:  { x1: bx,  y1: by-38*s,  x2: ux,        y2: by-78*s       },
+        head:   { cx: ux,  cy: by-89*s,  r:  10*s                          },
+        'arm-l':{ x1: ux,  y1: by-65*s,  x2: ux+alDx,   y2: by-65*s+alDy  },
+        'arm-r':{ x1: ux,  y1: by-65*s,  x2: ux+arDx,   y2: by-65*s+arDy  },
+        'leg-l':{ x1: bx,  y1: by-38*s,  x2: bx+llDx,   y2: by            },
+        'leg-r':{ x1: bx,  y1: by-38*s,  x2: bx+lrDx,   y2: by            },
       };
     };
 
@@ -490,7 +533,11 @@
 
     // ── Bullets + impacts ──────────────────────────────────────────────────────
     const bullets = [];
-    const impacts = [];
+    const impacts   = [];
+    const particles = [];
+    const popups    = [];
+    let   shake     = 0;
+    let   timeScale = 1.0;
 
     // ── Shoot queue — FATE walks to the right row, then fires ──────────────────
     let shootQueue    = [];
@@ -528,6 +575,7 @@
       const gy  = arm.y2 + any*13;
 
       fate.muzzleFlash = { x: gx, y: gy, elapsed: 0, duration: 140 };
+      shake = Math.max(shake, 5);
 
       const bvx = tx-gx, bvy = ty-gy;
       const bd  = Math.hypot(bvx,bvy)||1;
@@ -545,10 +593,19 @@
     // ── Render loop ────────────────────────────────────────────────────────────
     let last = performance.now();
     (function loop(now) {
-      const dt = Math.min((now-last)/1000, 0.05);
+      const rawDt = Math.min((now-last)/1000, 0.05);
       last = now;
+      if (timeScale < 1) timeScale = Math.min(1, timeScale + rawDt * 1.8);
+      const dt = rawDt * timeScale;
+      engine.timing.timeScale = timeScale;
+
+      if (shake > 0.4) shake *= 0.82; else shake = 0;
+      const sx = shake ? (Math.random()-0.5)*2*shake : 0;
+      const sy = shake ? (Math.random()-0.5)*2*shake : 0;
 
       ctx.clearRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(sx, sy);
 
       // Background
       ctx.fillStyle = '#f0ede4';
@@ -596,6 +653,17 @@
           b.target.hitFlash = { elapsed: 0, duration: 200 };
           if (b.target.onHit) b.target.onHit();
           impacts.push({ x: b.tx, y: b.ty, elapsed: 0, duration: 360 });
+          shake = Math.max(shake, 12);
+          for (let j = 0; j < 14; j++) {
+            const ang = Math.random()*Math.PI*2;
+            const spd = 60 + Math.random()*160;
+            particles.push({ x:b.tx, y:b.ty, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd-90,
+              life:1, color:j<9?'#e03030':'#FFE600', size:2+Math.random()*3 });
+          }
+          if (LIMB_KEYS.every(k => b.target.dropped.has(k))) {
+            timeScale = 0.15;
+            popups.push({ x:b.target.baseX, y:b.target.floorY-60, vy:-70, life:1.5 });
+          }
           setTimeout(processPending, 340);
         }
       }
@@ -629,6 +697,29 @@
         ctx.restore();
       }
 
+      // Particles
+      for (let i = particles.length-1; i >= 0; i--) {
+        const p = particles[i];
+        p.vy += 300*dt; p.x += p.vx*dt; p.y += p.vy*dt;
+        p.life -= dt*2.8;
+        if (p.life <= 0) { particles.splice(i,1); continue; }
+        ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size*Math.max(0.1,p.life), 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+
+      // Elimination popups
+      for (let i = popups.length-1; i >= 0; i--) {
+        const p = popups[i];
+        p.y += p.vy*dt; p.vy *= 0.94; p.life -= dt*0.7;
+        if (p.life <= 0) { popups.splice(i,1); continue; }
+        ctx.save(); ctx.globalAlpha = Math.min(1, p.life);
+        ctx.font = 'bold 13px Courier New'; ctx.fillStyle = '#cc0000'; ctx.textAlign = 'center';
+        ctx.fillText('ELIMINATED', p.x, p.y);
+        ctx.restore();
+      }
+
+      ctx.restore(); // end shake translate
       requestAnimationFrame(loop);
     })(last);
 
@@ -642,6 +733,8 @@
       figs.forEach(f => f.reset());
       fate.reset();
       bullets.length = 0; impacts.length = 0;
+      particles.length = 0; popups.length = 0;
+      shake = 0; timeScale = 1.0; engine.timing.timeScale = 1.0;
       shootQueue = []; shootBusy = false; pendingTarget = null;
       World.clear(engine.world, true);
     };
