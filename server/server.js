@@ -672,11 +672,30 @@ app.use((error, req, res, next) => {
   });
 });
 
+// ─── Room cleanup ─────────────────────────────────────────
+
+async function cleanupOldRooms() {
+  try {
+    const result = await db.query(
+      `DELETE FROM rooms
+       WHERE (status = 'waiting' AND updated_at < now() - interval '30 minutes')
+          OR (status != 'waiting' AND updated_at < now() - interval '24 hours')`
+    );
+    if (result.rowCount > 0) {
+      console.log(`Cleaned up ${result.rowCount} stale room(s)`);
+    }
+  } catch (err) {
+    console.error("Room cleanup failed:", err);
+  }
+}
+
 // ─── Start ────────────────────────────────────────────────
 
 db.migrate()
   .then(() => {
     server.listen(PORT, () => console.log(`BingoGen listening on port ${PORT}`));
+    cleanupOldRooms();
+    setInterval(cleanupOldRooms, 60 * 60 * 1000); // every hour
   })
   .catch((error) => {
     console.error("Failed to start server:", error);
