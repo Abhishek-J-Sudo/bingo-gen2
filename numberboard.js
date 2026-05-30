@@ -148,8 +148,6 @@ document.addEventListener("DOMContentLoaded", () => {
     async function resetGame() {
         const appState = window.BingoApp ? window.BingoApp.state : {};
         if (!await showConfirm("Reset the game? This clears all called numbers, winners, and everyone's board.", "Reset Game")) return;
-
-        window.BingoSounds?.gameReset();
         try {
             const roomState = await BingoApi.resetRoom(appState.roomCode, appState.sessionId);
             window.BingoApp.applyRoomState(roomState);
@@ -178,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (rollBtn) rollBtn.addEventListener("click", rollNumber);
-    if (resetBtn) resetBtn.addEventListener("click", resetGame);
+    if (resetBtn) resetBtn.addEventListener("click", () => { window.BingoSounds?.gameReset(); resetGame(); });
     if (startGameBtn) startGameBtn.addEventListener("click", toggleGameStatus);
     if (transferBtn) transferBtn.addEventListener("click", transferHost);
 
