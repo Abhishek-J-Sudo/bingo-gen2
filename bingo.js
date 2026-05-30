@@ -309,47 +309,77 @@ function updatePlayerCountDisplay(playerCount = 0) {
   if (el) el.textContent = `${playerCount}/10`;
 }
 
+function buildPlayerTag(player, hostPlayerId) {
+  const tag = document.createElement('span');
+  tag.className = 'player-tag';
+  tag.dataset.id = player.id;
+  tag.classList.toggle('current', player.id === state.playerId);
+  tag.classList.toggle('host', player.id === hostPlayerId);
+  const name = document.createElement('span');
+  name.textContent = player.name;
+  tag.appendChild(name);
+  const badges = [];
+  if (player.id === hostPlayerId) badges.push('Host');
+  if (player.id === state.playerId) badges.push('You');
+  if (badges.length) {
+    const b = document.createElement('strong');
+    b.textContent = `(${badges.join(', ')})`;
+    tag.appendChild(b);
+  }
+  return tag;
+}
+
 function renderPlayers(players = [], hostPlayerId = null) {
   const strip = document.getElementById('playersStrip');
   if (!strip) return;
 
-  strip.innerHTML = '';
+  // Map current tags by player id
+  const existing = new Map();
+  strip.querySelectorAll('.player-tag[data-id]').forEach(el => existing.set(el.dataset.id, el));
 
-  if (players.length > 0) {
-    const label = document.createElement('span');
-    label.className = 'players-label';
-    label.textContent = 'Players:';
-    strip.appendChild(label);
+  const incoming = new Map(players.map(p => [p.id, p]));
+
+  // Animate out players who left
+  for (const [id, el] of existing) {
+    if (!incoming.has(id)) {
+      el.classList.remove('player-tag-entering');
+      el.classList.add('player-tag-leaving');
+      el.addEventListener('animationend', () => el.remove(), { once: true });
+    }
   }
 
-  players.forEach((player, index) => {
-    if (index > 0) {
-      const separator = document.createElement('span');
-      separator.className = 'player-separator';
-      separator.textContent = ',';
-      strip.appendChild(separator);
+  // Ensure label exists iff there are players
+  let label = strip.querySelector('.players-label');
+  if (players.length > 0 && !label) {
+    label = document.createElement('span');
+    label.className = 'players-label';
+    label.textContent = 'Players:';
+    strip.insertBefore(label, strip.firstChild);
+  } else if (players.length === 0 && label) {
+    label.remove();
+  }
+
+  // Add new / update existing players
+  players.forEach(player => {
+    if (existing.has(player.id)) {
+      const el = existing.get(player.id);
+      // Cancel any in-progress leave animation if player rejoined
+      el.classList.remove('player-tag-leaving');
+      el.classList.toggle('current', player.id === state.playerId);
+      el.classList.toggle('host', player.id === hostPlayerId);
+      el.querySelector('span').textContent = player.name;
+      const badges = [];
+      if (player.id === hostPlayerId) badges.push('Host');
+      if (player.id === state.playerId) badges.push('You');
+      const badge = el.querySelector('strong');
+      if (badges.length && badge) badge.textContent = `(${badges.join(', ')})`;
+      else if (badges.length) { const b = document.createElement('strong'); b.textContent = `(${badges.join(', ')})`; el.appendChild(b); }
+      else badge?.remove();
+    } else {
+      const tag = buildPlayerTag(player, hostPlayerId);
+      tag.classList.add('player-tag-entering');
+      strip.appendChild(tag);
     }
-
-    const tag = document.createElement('span');
-    tag.className = 'player-tag';
-    tag.classList.toggle('current', player.id === state.playerId);
-    tag.classList.toggle('host', player.id === hostPlayerId);
-
-    const name = document.createElement('span');
-    name.textContent = player.name;
-    tag.appendChild(name);
-
-    const badges = [];
-    if (player.id === hostPlayerId) badges.push('Host');
-    if (player.id === state.playerId) badges.push('You');
-
-    if (badges.length > 0) {
-      const currentBadge = document.createElement('strong');
-      currentBadge.textContent = `(${badges.join(', ')})`;
-      tag.appendChild(currentBadge);
-    }
-
-    strip.appendChild(tag);
   });
 }
 

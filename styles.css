@@ -603,10 +603,28 @@ img[data-limb='leg-r'] {
   white-space: nowrap;
 }
 
-.player-separator {
-  flex: 0 0 auto;
-  margin: 0 7px 0 -1px;
-  color: var(--black);
+.player-tag + .player-tag::before {
+  content: ',\00a0';
+}
+
+@keyframes player-tag-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes player-tag-out {
+  from { opacity: 1; max-width: 220px; }
+  to   { opacity: 0; max-width: 0; }
+}
+
+.player-tag-entering {
+  animation: player-tag-in 200ms ease-out both;
+}
+
+.player-tag-leaving {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: player-tag-out 180ms ease-in forwards;
 }
 
 .player-tag strong {
