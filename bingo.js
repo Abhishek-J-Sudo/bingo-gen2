@@ -20,39 +20,45 @@ const droppedLimbs = new Set(); // `${playerId}-${limbIndex}` — tracks animate
 
 const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
 
-const LIMB_NAMES = { 'arm-l':'left arm', 'arm-r':'right arm', 'leg-l':'left leg', 'leg-r':'right leg', 'head':'head' };
+const LIMB_NAMES = {
+  'arm-l': 'left arm',
+  'arm-r': 'right arm',
+  'leg-l': 'left leg',
+  'leg-r': 'right leg',
+  head: 'head',
+};
 
 const COMMENTARY = {
   taunt: [
-    "Nothing personal, {name}. Actually — very personal.",
-    "{name}. Your number is up.",
-    "Say goodbye, {name}.",
-    "Oh no. FATE is coming for {name}.",
+    'Nothing personal, {name}. Actually — very personal.',
+    '{name}. Your number is up.',
+    'Say goodbye, {name}.',
+    'Oh no. FATE is coming for {name}.',
     "Don't look now, {name}.",
     "FATE eyes {name}… this won't be pretty.",
-    "Tsk tsk. Poor {name}.",
-    "Step aside. FATE wants {name}.",
+    'Tsk tsk. Poor {name}.',
+    'Step aside. FATE wants {name}.',
     "{name} didn't pick the right numbers today.",
-    "Hold still, {name}.",
+    'Hold still, {name}.',
   ],
   hit: [
     "There goes {name}'s {limb}!",
-    "{name} is falling apart. Literally.",
+    '{name} is falling apart. Literally.',
     "{name} won't forget this round.",
     "FATE doesn't miss. {name} just learned that.",
-    "Ouch. {name} felt that one.",
-    "{name} loses a {limb}. Still standing though.",
-    "The {limb}! FATE went straight for the {limb}!",
+    'Ouch. {name} felt that one.',
+    '{name} loses a {limb}. Still standing though.',
+    'FATE went straight for the {limb}!',
   ],
   eliminated: [
-    "{name} has been ELIMINATED.",
-    "FATE claims another victim: {name}.",
+    '{name} has been ELIMINATED.',
+    'FATE claims another victim: {name}.',
     "And that's it for {name}. Brutal.",
     "{name} is down. Who's next?",
-    "Goodbye, {name}. It was nice knowing you.",
-    "Moment of silence for {name}. …OK, moving on.",
-    "FATE shows no mercy. {name} is gone.",
-    "{name}: eliminated. FATE: satisfied.",
+    'Goodbye, {name}. It was nice knowing you.',
+    'Moment of silence for {name}. …OK, moving on.',
+    'FATE shows no mercy. {name} is gone.',
+    '{name}: eliminated. FATE: satisfied.',
   ],
 };
 
@@ -81,7 +87,9 @@ const SPRITE_CHARACTERS = [
 
 function charForPlayer(playerId) {
   if (!SPRITE_CHARACTERS.length) return null;
-  const hash = String(playerId).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const hash = String(playerId)
+    .split('')
+    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
   return SPRITE_CHARACTERS[hash % SPRITE_CHARACTERS.length];
 }
 
@@ -90,7 +98,9 @@ function buildSpriteFigure(charName) {
   const limbs = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
   const imgs = [
     `<img src="${base}/${charName}-torso.png" alt="" class="sprite-part">`,
-    ...limbs.map(l => `<img data-limb="${l}" src="${base}/${charName}-${l}.png" alt="" class="sprite-part">`),
+    ...limbs.map(
+      (l) => `<img data-limb="${l}" src="${base}/${charName}-${l}.png" alt="" class="sprite-part">`,
+    ),
   ].join('');
   return `<div class="avatar-figure avatar-figure--sprite">${imgs}</div>`;
 }
@@ -125,7 +135,6 @@ function createAvatarCard(player) {
   return card;
 }
 
-
 function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {}, live = false) {
   const arena = document.getElementById('avatarArena');
   if (!arena) return;
@@ -142,9 +151,9 @@ function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {},
   }
 
   // Detect newly dropped limbs and queue FATE shots
-  players.forEach(player => {
+  players.forEach((player) => {
     const dangers = dangerNumbers[player.id] || [];
-    const lostLimbs = dangers.map(n => calledNumbers.includes(n));
+    const lostLimbs = dangers.map((n) => calledNumbers.includes(n));
     lostLimbs.forEach((lost, i) => {
       const key = `${player.id}-${i}`;
       if (lost && live && !droppedLimbs.has(key)) {
@@ -298,7 +307,9 @@ function renderBoard(numbers, markedNumbers = []) {
       if (markedNumbers.includes(numbers[idx])) cell.classList.add('marked');
       cell.style.animationDelay = `${idx * 35}ms`;
       cell.classList.add('cell-deal');
-      cell.addEventListener('animationend', () => cell.classList.remove('cell-deal'), { once: true });
+      cell.addEventListener('animationend', () => cell.classList.remove('cell-deal'), {
+        once: true,
+      });
       idx++;
     }
   }

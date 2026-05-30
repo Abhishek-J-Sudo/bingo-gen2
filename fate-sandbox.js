@@ -410,7 +410,6 @@ window.FateSandbox = (() => {
     shootBusy    = true;
     pendingTarget = shootQueue.shift();
     fate.targetY  = pendingTarget.fig.floorY;
-    if (commentaryFn) commentaryFn('taunt', { name: pendingTarget.fig.name });
   }
 
   function fireAt(target, limbKey) {
