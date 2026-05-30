@@ -208,6 +208,104 @@
       ctx.restore();
     };
 
+    // ── FlexFigure — rubber-band bezier prototype ──────────────────────────────
+    function FlexFigure(px, floorY, name, scale) {
+      Figure.call(this, px, floorY, name, scale);
+      // Per-limb bend springs: b=bend offset (px, perpendicular), v=velocity
+      this.bends = {
+        torso:  { b:0, v:0, freq:0.5, amp:4,  phase:0.0 },
+        'arm-l':{ b:0, v:0, freq:1.1, amp:10, phase:1.2 },
+        'arm-r':{ b:0, v:0, freq:0.9, amp:10, phase:2.5 },
+        'leg-l':{ b:0, v:0, freq:0.7, amp:7,  phase:0.6 },
+        'leg-r':{ b:0, v:0, freq:0.7, amp:7,  phase:1.9 },
+      };
+    }
+    FlexFigure.prototype = Object.create(Figure.prototype);
+    FlexFigure.prototype.constructor = FlexFigure;
+
+    FlexFigure.prototype.reset = function () {
+      Figure.prototype.reset.call(this);
+      Object.values(this.bends).forEach(s => { s.b = 0; s.v = 0; });
+    };
+
+    FlexFigure.prototype.react = function () {
+      Figure.prototype.react.call(this);
+      Object.values(this.bends).forEach(s => { s.v += (Math.random()-0.5) * 900; });
+    };
+
+    FlexFigure.prototype.update = function (dt) {
+      Figure.prototype.update.call(this, dt);
+      const stiffness = 55, damping = 4.5;
+      Object.values(this.bends).forEach(s => {
+        const target = Math.sin(this.t * s.freq + s.phase) * s.amp;
+        s.v += (stiffness * (target - s.b) - damping * s.v) * dt;
+        s.b += s.v * dt;
+      });
+    };
+
+    FlexFigure.prototype.onHit = function () {
+      Object.values(this.bends).forEach(s => { s.v += (Math.random()-0.5) * 1200; });
+    };
+
+    function drawBezierLimb(ctx, x1, y1, x2, y2, bend) {
+      const dx = x2-x1, dy = y2-y1;
+      const len = Math.hypot(dx, dy) || 1;
+      // control point is mid-limb + perpendicular offset
+      const mx = (x1+x2)/2 - (dy/len)*bend;
+      const my = (y1+y2)/2 + (dx/len)*bend;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.quadraticCurveTo(mx, my, x2, y2);
+      ctx.stroke();
+    }
+
+    FlexFigure.prototype.draw = function (ctx) {
+      const p     = this.getPose();
+      const s     = this.scale;
+      const flash = this.hitFlash && (this.hitFlash.elapsed/this.hitFlash.duration) < 0.6;
+      const ink   = flash ? '#e03030' : '#1a1a1a';
+      const fill  = flash ? '#ffcccc' : '#f0ede4';
+      const bds   = this.bends;
+
+      ctx.save();
+      ctx.strokeStyle = ink;
+      ctx.lineWidth   = 3 * s;
+      ctx.lineCap     = 'round';
+
+      drawBezierLimb(ctx, p.torso.x1, p.torso.y1, p.torso.x2, p.torso.y2, bds.torso.b);
+
+      ['arm-l','arm-r','leg-l','leg-r'].forEach(k => {
+        if (this.dropped.has(k)) return;
+        drawBezierLimb(ctx, p[k].x1, p[k].y1, p[k].x2, p[k].y2, bds[k].b);
+      });
+
+      if (!this.dropped.has('head')) {
+        ctx.beginPath(); ctx.arc(p.head.cx, p.head.cy, p.head.r, 0, Math.PI*2);
+        ctx.fillStyle = fill; ctx.fill(); ctx.stroke();
+      }
+
+      Object.entries(this.physBodies).forEach(([k,body]) => {
+        ctx.save();
+        if (k==='head') {
+          ctx.beginPath(); ctx.arc(body.position.x, body.position.y, 10*s, 0, Math.PI*2);
+          ctx.fillStyle='#f0ede4'; ctx.fill();
+          ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=3*s; ctx.stroke();
+        } else {
+          const half=(body.limbLength||18)/2;
+          const cos=Math.cos(body.angle), sin=Math.sin(body.angle);
+          ctx.beginPath();
+          ctx.moveTo(body.position.x-cos*half, body.position.y-sin*half);
+          ctx.lineTo(body.position.x+cos*half, body.position.y+sin*half);
+          ctx.strokeStyle='#1a1a1a'; ctx.lineWidth=3*s; ctx.lineCap='round'; ctx.stroke();
+        }
+        ctx.restore();
+      });
+
+      ctx.font=`bold ${Math.round(10*s)}px Courier New`; ctx.fillStyle='#1a1a1a'; ctx.textAlign='center';
+      ctx.fillText(this.name, this.baseX, this.floorY+18);
+      ctx.restore();
+    };
+
     // ── FATE Villain ───────────────────────────────────────────────────────────
     function FateVillain(x, startY) {
       this.x           = x;
@@ -338,7 +436,7 @@
     const col     = i => PLAYER_START_X + spacing * i + spacing / 2;
 
     const figs = [
-      new Figure(col(0), ROW1_Y, 'ABHI ★', 1.0),
+      new FlexFigure(col(0), ROW1_Y, 'ABHI ★', 1.0),
       new Figure(col(1), ROW1_Y, 'SAM',    1.0),
       new Figure(col(2), ROW1_Y, 'MIA',    1.0),
       new Figure(col(0), ROW2_Y, 'KAI',    1.0),
@@ -454,6 +552,7 @@
           b.done = true;
           b.target.dropLimb(b.nextKey);
           b.target.hitFlash = { elapsed: 0, duration: 200 };
+          if (b.target.onHit) b.target.onHit();
           impacts.push({ x: b.tx, y: b.ty, elapsed: 0, duration: 360 });
           setTimeout(processPending, 340);
         }
