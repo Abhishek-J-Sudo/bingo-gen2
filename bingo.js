@@ -20,6 +20,56 @@ const droppedLimbs = new Set(); // `${playerId}-${limbIndex}` — tracks animate
 
 const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
 
+const LIMB_NAMES = { 'arm-l':'left arm', 'arm-r':'right arm', 'leg-l':'left leg', 'leg-r':'right leg', 'head':'head' };
+
+const COMMENTARY = {
+  taunt: [
+    "Nothing personal, {name}. Actually — very personal.",
+    "{name}. Your number is up.",
+    "Say goodbye, {name}.",
+    "Oh no. FATE is coming for {name}.",
+    "Don't look now, {name}.",
+    "FATE eyes {name}… this won't be pretty.",
+    "Tsk tsk. Poor {name}.",
+    "Step aside. FATE wants {name}.",
+    "{name} didn't pick the right numbers today.",
+    "Hold still, {name}.",
+  ],
+  hit: [
+    "There goes {name}'s {limb}!",
+    "{name} is falling apart. Literally.",
+    "{name} won't forget this round.",
+    "FATE doesn't miss. {name} just learned that.",
+    "Ouch. {name} felt that one.",
+    "{name} loses a {limb}. Still standing though.",
+    "The {limb}! FATE went straight for the {limb}!",
+  ],
+  eliminated: [
+    "{name} has been ELIMINATED.",
+    "FATE claims another victim: {name}.",
+    "And that's it for {name}. Brutal.",
+    "{name} is down. Who's next?",
+    "Goodbye, {name}. It was nice knowing you.",
+    "Moment of silence for {name}. …OK, moving on.",
+    "FATE shows no mercy. {name} is gone.",
+    "{name}: eliminated. FATE: satisfied.",
+  ],
+};
+
+function showCommentary(type, data) {
+  const bar = document.getElementById('commentaryBar');
+  if (!bar) return;
+  const pool = COMMENTARY[type];
+  if (!pool) return;
+  const template = pool[Math.floor(Math.random() * pool.length)];
+  bar.textContent = template
+    .replace(/\{name\}/g, data.name || '')
+    .replace(/\{limb\}/g, LIMB_NAMES[data.limb] || data.limb || '');
+  bar.classList.remove('commentary-pop');
+  void bar.offsetWidth;
+  bar.classList.add('commentary-pop');
+}
+
 // List of available sprite characters under assets/characters/.
 // Each entry must have: {name}-torso.png, {name}-head.png, {name}-arm-l.png,
 // {name}-arm-r.png, {name}-leg-l.png, {name}-leg-r.png — all same canvas size.
@@ -83,10 +133,11 @@ function renderAvatarArena(players = [], calledNumbers = [], dangerNumbers = {},
   // Init or update FATE sandbox
   const fateCanvas = document.getElementById('fateArenaCanvas');
   if (fateCanvas && window.FateSandbox && players.length > 0) {
+    FateSandbox.init(players, fateCanvas);
     if (!renderAvatarArena._sandboxReady) {
       renderAvatarArena._sandboxReady = true;
-      FateSandbox.init(players, fateCanvas);
       FateSandbox.syncState(players, calledNumbers, dangerNumbers);
+      FateSandbox.setCommentary(showCommentary);
     }
   }
 
@@ -511,6 +562,8 @@ function connectSocket(code) {
       droppedLimbs.clear();
       renderAvatarArena._sandboxReady = false;
       if (window.FateSandbox) FateSandbox.reset();
+      const bar = document.getElementById('commentaryBar');
+      if (bar) bar.textContent = '';
       applyRoomState(roomState);
       updateRollDisplayFromState();
 

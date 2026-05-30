@@ -13,6 +13,23 @@ window.FateSandbox = (() => {
   const FATE_X      = 52;
   const PLAYER_START_X = 108;
 
+  const FATE_TAUNTS = [
+    "Nothing personal, {name}.",
+    "{name}. Say goodbye.",
+    "Your number's up, {name}.",
+    "This won't hurt. Much.",
+    "Tsk tsk, {name}.",
+    "Ah. There you are, {name}.",
+    "Hold still, {name}.",
+    "It's just business, {name}.",
+    "Poor {name}.",
+    "Farewell, {name}.",
+    "I've been looking forward to this.",
+    "{name}. Don't run.",
+  ];
+
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
   let Matter, engine, physRunner, floorBody;
   let canvas, ctx, W, H;
   let figs         = {};   // playerId → FlexFigure
@@ -23,6 +40,7 @@ window.FateSandbox = (() => {
   let shootQueue   = [], shootBusy = false, pendingTarget = null;
   let rafId        = null, lastTs  = 0;
   let running      = false;
+  let commentaryFn = null;
 
   // ── Figure ────────────────────────────────────────────────────────────────
   function Figure(px, floorY, name, scale) {
@@ -232,10 +250,15 @@ window.FateSandbox = (() => {
   function FateVillain(x, startY) {
     this.x=x; this.y=startY; this.targetY=startY; this.startY=startY;
     this.t=0; this.aimTarget=null; this.aimElapsed=0; this.aimDuration=0; this.muzzleFlash=null;
+    this.bubble=null;
   }
 
   FateVillain.prototype.reset = function () {
-    this.y=this.startY; this.targetY=this.startY; this.t=0; this.aimTarget=null; this.muzzleFlash=null;
+    this.y=this.startY; this.targetY=this.startY; this.t=0; this.aimTarget=null; this.muzzleFlash=null; this.bubble=null;
+  };
+
+  FateVillain.prototype.say = function (text) {
+    this.bubble = { text, life: 2.6, maxLife: 2.6 };
   };
 
   FateVillain.prototype.aimAt = function (tx, ty, dur) {
@@ -248,6 +271,7 @@ window.FateSandbox = (() => {
     if (Math.abs(gap)>0.5) this.y+=gap*Math.min(7*dt,1); else this.y=this.targetY;
     if (this.aimTarget) { this.aimElapsed+=dt*1000; if (this.aimElapsed>=this.aimDuration) this.aimTarget=null; }
     if (this.muzzleFlash) { this.muzzleFlash.elapsed+=dt*1000; if (this.muzzleFlash.elapsed>=this.muzzleFlash.duration) this.muzzleFlash=null; }
+    if (this.bubble) { this.bubble.life-=dt; if (this.bubble.life<=0) this.bubble=null; }
   };
 
   FateVillain.prototype.getPose = function () {
@@ -294,6 +318,38 @@ window.FateSandbox = (() => {
     c.restore();
     c.font='bold 10px Courier New'; c.fillStyle='#cc0000'; c.textAlign='center';
     c.fillText('FATE', this.x, by+18);
+
+    if (this.bubble) {
+      const { life, maxLife, text } = this.bubble;
+      const alpha = life < 0.35 ? life/0.35 : life > maxLife-0.2 ? (maxLife-life)/0.2 : 1;
+      const tipX = p.head.cx;
+      const tipY = p.head.cy - p.head.r - 4 - p.head.r*2.4 - 5;
+      c.save();
+      c.globalAlpha = alpha;
+      c.font = 'bold 11px Courier New';
+      const tw = c.measureText(text).width;
+      const pw = tw + 18, ph = 22, ptrH = 8;
+      const px = Math.max(4, Math.min(W - pw - 4, tipX - pw/2));
+      const py = tipY - ph - ptrH;
+      const ptx = Math.max(px+10, Math.min(px+pw-10, tipX));
+      c.beginPath();
+      c.moveTo(px+5,py); c.lineTo(px+pw-5,py);
+      c.quadraticCurveTo(px+pw,py,px+pw,py+5);
+      c.lineTo(px+pw,py+ph-5);
+      c.quadraticCurveTo(px+pw,py+ph,px+pw-5,py+ph);
+      c.lineTo(ptx+6,py+ph); c.lineTo(ptx,tipY); c.lineTo(ptx-6,py+ph);
+      c.lineTo(px+5,py+ph);
+      c.quadraticCurveTo(px,py+ph,px,py+ph-5);
+      c.lineTo(px,py+5);
+      c.quadraticCurveTo(px,py,px+5,py);
+      c.closePath();
+      c.fillStyle='#fffef5'; c.fill();
+      c.strokeStyle='#1a1a1a'; c.lineWidth=2; c.stroke();
+      c.fillStyle='#1a1a1a'; c.textAlign='center'; c.textBaseline='middle';
+      c.fillText(text, px+pw/2, py+ph/2);
+      c.restore();
+    }
+
     c.restore();
   };
 
@@ -308,6 +364,13 @@ window.FateSandbox = (() => {
     const perRow = Math.ceil(n / rows);
     const zoneW  = W - PLAYER_START_X - 16;
     const colW   = zoneW / perRow;
+
+    const currentIds = new Set(players.map(p => p.id));
+    Object.entries(figs).forEach(([id, f]) => {
+      if (!currentIds.has(id) && engine) {
+        Object.values(f.physBodies).forEach(b => Matter.World.remove(engine.world, b));
+      }
+    });
 
     const next = {};
     players.forEach((player, idx) => {
@@ -347,6 +410,7 @@ window.FateSandbox = (() => {
     shootBusy    = true;
     pendingTarget = shootQueue.shift();
     fate.targetY  = pendingTarget.fig.floorY;
+    if (commentaryFn) commentaryFn('taunt', { name: pendingTarget.fig.name });
   }
 
   function fireAt(target, limbKey) {
@@ -430,9 +494,13 @@ window.FateSandbox = (() => {
           particles.push({ x:b.tx,y:b.ty, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd-90,
             life:1, color:j<9?'#e03030':'#FFE600', size:2+Math.random()*3 });
         }
-        if (LIMB_KEYS.every(k=>b.target.dropped.has(k))) {
+        const eliminated = LIMB_KEYS.every(k=>b.target.dropped.has(k));
+        if (eliminated) {
           timeScale=0.15;
           popups.push({ x:b.target.baseX, y:b.target.floorY-60, vy:-70, life:1.5 });
+          if (commentaryFn) commentaryFn('eliminated', { name: b.target.name });
+        } else {
+          if (commentaryFn) commentaryFn('hit', { name: b.target.name, limb: b.limbKey });
         }
         setTimeout(processPending,340);
       }
@@ -489,10 +557,12 @@ window.FateSandbox = (() => {
   function init(players, canvasEl) {
     canvas = canvasEl;
     ctx    = canvas.getContext('2d');
-    W = 600;
-    H = Math.round(W * 0.34);
-    canvas.width  = W;
-    canvas.height = H;
+    if (!W) {
+      W = 600;
+      H = Math.round(W * 0.34);
+      canvas.width  = W;
+      canvas.height = H;
+    }
 
     if (!Matter) {
       Matter = window.Matter;
@@ -541,5 +611,7 @@ window.FateSandbox = (() => {
     if (engine) { Matter.World.clear(engine.world,true); addFloor(); }
   }
 
-  return { init, queueShot, syncState, reset };
+  function setCommentary(fn) { commentaryFn = fn; }
+
+  return { init, queueShot, syncState, reset, setCommentary };
 })();
