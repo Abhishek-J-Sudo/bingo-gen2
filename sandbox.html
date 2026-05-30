@@ -213,11 +213,11 @@
       Figure.call(this, px, floorY, name, scale);
       // Per-limb bend springs: b=bend offset (px, perpendicular), v=velocity
       this.bends = {
-        torso:  { b:0, v:0, freq:0.5, amp:4,  phase:0.0 },
-        'arm-l':{ b:0, v:0, freq:1.1, amp:10, phase:1.2 },
-        'arm-r':{ b:0, v:0, freq:0.9, amp:10, phase:2.5 },
-        'leg-l':{ b:0, v:0, freq:0.7, amp:7,  phase:0.6 },
-        'leg-r':{ b:0, v:0, freq:0.7, amp:7,  phase:1.9 },
+        torso:  { b:0, v:0, freq:0.5, amp:3,  phase:0.0 },
+        'arm-l':{ b:0, v:0, freq:1.1, amp:6,  phase:1.2 },
+        'arm-r':{ b:0, v:0, freq:0.9, amp:6,  phase:2.5 },
+        'leg-l':{ b:0, v:0, freq:0.7, amp:5,  phase:0.6 },
+        'leg-r':{ b:0, v:0, freq:0.7, amp:5,  phase:1.9 },
       };
     }
     FlexFigure.prototype = Object.create(Figure.prototype);
@@ -245,6 +245,48 @@
 
     FlexFigure.prototype.onHit = function () {
       Object.values(this.bends).forEach(s => { s.v += (Math.random()-0.5) * 1200; });
+    };
+
+    // Saved running idle — swap getPose → getRunPose to activate
+    FlexFigure.prototype.getRunPose = function () {
+      const s  = this.scale;
+      const t  = this.t;
+      const bx = this.baseX;
+      const by = this.floorY + this.dy;
+
+      // c: -1..1, drive the running cycle (~2.2 steps/sec)
+      const c = Math.sin(t * 4.5);
+
+      // Body bounces up at each step peak (legs fully extended)
+      const bounce = Math.abs(c) * 6 * s;
+
+      const hipY      = by - 38*s - bounce;
+      const shoulderY = by - 65*s - bounce;
+      const topY      = by - 78*s - bounce;
+      const headY     = by - 89*s - bounce;
+
+      // Legs: stride forward/back + knee lift when swinging forward
+      const stride = 20*s, liftH = 18*s;
+      const ll_x = bx - 6*s + c * stride;
+      const ll_y = by - Math.max(0,  c) * liftH;   // leg-l lifts when c > 0
+      const lr_x = bx + 6*s - c * stride;
+      const lr_y = by - Math.max(0, -c) * liftH;   // leg-r lifts when c < 0
+
+      // Arms: cross-body (arm-l pairs with leg-r, arm-r pairs with leg-l)
+      const aSwing = 14*s, aArc = 8*s;
+      const al_x = bx - 8*s - c * aSwing;          // arm-l goes back when c > 0
+      const al_y = shoulderY + 17*s + c * aArc;    // drops when pulled back
+      const ar_x = bx + 8*s + c * aSwing;          // arm-r swings forward when c > 0
+      const ar_y = shoulderY + 17*s - c * aArc;    // rises when forward
+
+      return {
+        torso:  { x1: bx,  y1: hipY,      x2: bx,   y2: topY  },
+        head:   { cx: bx,  cy: headY,     r: 10*s },
+        'arm-l':{ x1: bx,  y1: shoulderY, x2: al_x, y2: al_y  },
+        'arm-r':{ x1: bx,  y1: shoulderY, x2: ar_x, y2: ar_y  },
+        'leg-l':{ x1: bx,  y1: hipY,      x2: ll_x, y2: ll_y  },
+        'leg-r':{ x1: bx,  y1: hipY,      x2: lr_x, y2: lr_y  },
+      };
     };
 
     function drawBezierLimb(ctx, x1, y1, x2, y2, bend) {
@@ -437,11 +479,11 @@
 
     const figs = [
       new FlexFigure(col(0), ROW1_Y, 'ABHI ★', 1.0),
-      new Figure(col(1), ROW1_Y, 'SAM',    1.0),
-      new Figure(col(2), ROW1_Y, 'MIA',    1.0),
-      new Figure(col(0), ROW2_Y, 'KAI',    1.0),
-      new Figure(col(1), ROW2_Y, 'LEO',    1.0),
-      new Figure(col(2), ROW2_Y, 'ZOE',    1.0),
+      new FlexFigure(col(1), ROW1_Y, 'SAM',    1.0),
+      new FlexFigure(col(2), ROW1_Y, 'MIA',    1.0),
+      new FlexFigure(col(0), ROW2_Y, 'KAI',    1.0),
+      new FlexFigure(col(1), ROW2_Y, 'LEO',    1.0),
+      new FlexFigure(col(2), ROW2_Y, 'ZOE',    1.0),
     ];
 
     const fate = new FateVillain(FATE_X, ROW1_Y);
