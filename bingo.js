@@ -65,16 +65,25 @@ const COMMENTARY = {
 
 function renderScoreboard() {
   const el = document.getElementById('scoreboard');
-  if (!el) return;
+  const leaderboardEl = document.getElementById('leaderboardContent');
   const rows = Object.values(sessionWins).sort((a, b) => b.wins - a.wins);
-  if (!rows.length) { el.innerHTML = ''; return; }
-  const maxWins = rows[0].wins;
-  el.innerHTML = '<div class="scoreboard-title">Score</div>' +
-    rows.map(r => `
-      <div class="scoreboard-row${r.wins === maxWins ? ' leader' : ''}">
-        <span class="scoreboard-name">${r.name}</span>
-        <span class="scoreboard-wins">${r.wins}</span>
-      </div>`).join('');
+  const maxWins = rows[0]?.wins ?? 0;
+  const rowsHtml = rows.map(r => `
+    <div class="scoreboard-row${r.wins === maxWins ? ' leader' : ''}">
+      <span class="scoreboard-name">${r.name}</span>
+      <span class="scoreboard-wins">${r.wins}</span>
+    </div>`).join('');
+
+  if (el) {
+    el.innerHTML = rows.length
+      ? '<div class="scoreboard-title">Score</div>' + rowsHtml
+      : '';
+  }
+  if (leaderboardEl) {
+    leaderboardEl.innerHTML = rows.length
+      ? rowsHtml
+      : '<div class="leaderboard-empty">No wins yet</div>';
+  }
 }
 
 // ── Roll sounds ──────────────────────────────────────────────────────────────
@@ -104,6 +113,44 @@ function playRollTick(index) {
 function playRollLand() {
   if (_snareInstance) { _snareInstance.pause(); _snareInstance = null; }
 }
+
+// ── UI button sounds ──────────────────────────────────────────────────────────
+const BingoSounds = (() => {
+  function ac() { return getRollCtx(); }
+  function m() { return isSoundMuted(); }
+
+  function tone(freq, dur = 0.07, vol = 0.13, type = 'sine', freqEnd = null) {
+    if (m()) return;
+    try {
+      const c = ac(), t = c.currentTime;
+      const g = c.createGain(); g.connect(c.destination);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      const o = c.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(freq, t);
+      if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, t + dur);
+      o.connect(g); o.start(t); o.stop(t + dur);
+    } catch(e) {}
+  }
+
+  function join()         { tone(440, 0.07, 0.12); setTimeout(() => tone(660, 0.1, 0.11), 70); }
+  function create()       { [440, 554, 660].forEach((f, i) => setTimeout(() => tone(f, 0.09, 0.11), i * 65)); }
+  function leave()        { tone(380, 0.22, 0.1, 'sawtooth', 90); }
+  function copy()         { tone(900, 0.04, 0.08, 'square'); setTimeout(() => tone(1100, 0.05, 0.07, 'square'), 45); }
+  function boardReset()   { [0, 45, 90, 135].forEach(d => setTimeout(() => tone(160 + Math.random() * 120, 0.03, 0.09, 'square'), d)); }
+  function cellMark()     { tone(110, 0.13, 0.22, 'triangle', 55); }
+  function gameStart()    { [[0, 220], [90, 330], [180, 440], [270, 660]].forEach(([d, f]) => setTimeout(() => tone(f, 0.13, 0.18, 'sawtooth'), d)); }
+  function gameStop()     { tone(440, 0.18, 0.12, 'sawtooth', 180); }
+  function gameReset()    { tone(500, 0.3, 0.14, 'sawtooth', 70); }
+  function transferHost() { tone(880, 0.08, 0.12); setTimeout(() => tone(1100, 0.13, 0.1), 90); }
+  function panelOpen()    { tone(300, 0.14, 0.08, 'sine', 600); }
+  function panelClose()   { tone(600, 0.12, 0.08, 'sine', 250); }
+  function dialogConfirm(){ tone(660, 0.08, 0.12); setTimeout(() => tone(880, 0.1, 0.1), 80); }
+  function dialogCancel() { tone(280, 0.14, 0.1, 'triangle'); }
+
+  return { join, create, leave, copy, boardReset, cellMark, gameStart, gameStop, gameReset, transferHost, panelOpen, panelClose, dialogConfirm, dialogCancel };
+})();
+window.BingoSounds = BingoSounds;
 
 function showCommentary(type, data) {
   const bar = document.getElementById('commentaryBar');
@@ -414,7 +461,7 @@ async function handleCellClick(event) {
   cell.classList.toggle('marked');
   state.markedNumbers = getCellNumbers('#bingoTable td.marked');
 
-  if (!isMarked) playSliceAnimation(cell);
+  if (!isMarked) { BingoSounds.cellMark(); playSliceAnimation(cell); }
 
   try {
     await BingoApi.markBoard(state.boardId, state.sessionId, state.markedNumbers);
@@ -482,18 +529,22 @@ function setRollDisplay(number, status, rolling = false) {
   const wasRolling = rollDisplay?.classList.contains('rolling') ?? false;
   if (rollDisplay) rollDisplay.classList.toggle('rolling', rolling);
 
-  if (numberEl) {
-    numberEl.textContent = number || '--';
-    numberEl.classList.remove('roll-flick', 'roll-impact');
-    void numberEl.offsetWidth; // force reflow to restart animation
+  const mobileNumEl = document.getElementById('mobileRollNum');
+  const mobileChip  = document.getElementById('mobileRollChip');
+
+  for (const el of [numberEl, mobileNumEl].filter(Boolean)) {
+    el.textContent = number || '--';
+    el.classList.remove('roll-flick', 'roll-impact');
+    void el.offsetWidth;
     if (rolling) {
-      numberEl.classList.add('roll-flick');
+      el.classList.add('roll-flick');
     } else if (wasRolling && number && number !== '--') {
-      numberEl.classList.add('roll-impact');
-      playRollLand();
+      el.classList.add('roll-impact');
     }
   }
+  if (numberEl && wasRolling && number && number !== '--') playRollLand();
 
+  if (mobileChip) mobileChip.classList.toggle('rolling', rolling);
   if (statusEl) statusEl.textContent = status;
 }
 
@@ -944,10 +995,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(lobbyArrowSequence, 1800);
   setInterval(lobbyArrowSequence, 5500);
 
-  document.getElementById('createRoom')?.addEventListener('click', createRoom);
-  document.getElementById('joinRoom')?.addEventListener('click', joinRoom);
-  document.getElementById('playerReset')?.addEventListener('click', resetPlayerBoard);
-  document.getElementById('leaveRoom')?.addEventListener('click', leaveRoom);
+  document.getElementById('createRoom')?.addEventListener('click', () => { BingoSounds.create(); createRoom(); });
+  document.getElementById('joinRoom')?.addEventListener('click', () => { BingoSounds.join(); joinRoom(); });
+  document.getElementById('playerReset')?.addEventListener('click', () => { BingoSounds.boardReset(); resetPlayerBoard(); });
+  document.getElementById('leaveRoom')?.addEventListener('click', () => { BingoSounds.leave(); leaveRoom(); });
 
   document.getElementById('muteBtn')?.addEventListener('click', () => {
     const btn = document.getElementById('muteBtn');
@@ -968,6 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('copyRoomCode')?.addEventListener('click', () => {
     if (!state.roomCode) return;
+    BingoSounds.copy();
     navigator.clipboard.writeText(state.roomCode).then(() => {
       const btn = document.getElementById('copyRoomCode');
       btn.classList.add('copied');
@@ -980,6 +1032,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Enter') joinRoom();
     });
   });
+
+  // Leaderboard sheet (mobile)
+  const leaderboardSheet    = document.getElementById('leaderboardSheet');
+  const leaderboardBackdrop = document.getElementById('leaderboardBackdrop');
+  const openLeaderboard  = () => { BingoSounds.panelOpen();  leaderboardSheet?.classList.add('sheet-open');    leaderboardBackdrop?.classList.add('open'); };
+  const closeLeaderboard = () => { BingoSounds.panelClose(); leaderboardSheet?.classList.remove('sheet-open'); leaderboardBackdrop?.classList.remove('open'); };
+  document.getElementById('leaderboardBtn')?.addEventListener('click', openLeaderboard);
+  document.getElementById('leaderboardSheetClose')?.addEventListener('click', closeLeaderboard);
+  leaderboardBackdrop?.addEventListener('click', closeLeaderboard);
 
   restoreRoom();
 });

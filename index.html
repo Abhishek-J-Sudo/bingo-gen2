@@ -75,6 +75,20 @@
           <div id="scoreboard" class="scoreboard-panel"></div>
           <div class="bingo-table-wrap">
             <div class="board-column">
+              <div class="board-topbar">
+                <button id="leaderboardBtn" class="button-6 lb-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 9H4a2 2 0 0 1-2-2V5h4"/><path d="M18 9h2a2 2 0 0 0 2-2V5h-4"/>
+                    <path d="M12 17v4"/><path d="M8 21h8"/>
+                    <path d="M6 5h12v6a6 6 0 0 1-12 0V5z"/>
+                  </svg>
+                  Scores
+                </button>
+                <div id="mobileRollChip" class="mobile-roll-chip">
+                  <span class="mobile-roll-label">Roll</span>
+                  <span id="mobileRollNum">--</span>
+                </div>
+              </div>
               <div class="board-frame">
                 <table id="bingoTable"></table>
               </div>
@@ -156,6 +170,19 @@
       </svg>
     </button>
     <div id="callerBackdrop" class="caller-backdrop"></div>
+
+    <!-- Leaderboard bottom sheet (mobile) -->
+    <div id="leaderboardSheet" class="leaderboard-sheet">
+      <div class="sheet-handle-bar">
+        <div class="sheet-handle lb-handle"></div>
+      </div>
+      <div class="leaderboard-sheet-title">
+        <span>Session Scores</span>
+        <button id="leaderboardSheetClose" class="lb-close">&#x2715;</button>
+      </div>
+      <div id="leaderboardContent" class="leaderboard-content"></div>
+    </div>
+    <div id="leaderboardBackdrop" class="caller-backdrop"></div>
 
     <div id="dialogOverlay" class="dialog-overlay" aria-hidden="true">
       <div
