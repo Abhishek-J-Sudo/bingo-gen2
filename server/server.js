@@ -651,16 +651,33 @@ io.on("connection", (socket) => {
         const currentRoom = await getRoomByCode(info.code);
         if (!currentRoom || currentRoom.host_session_id !== info.sessionId) return;
 
-        const next = await db.query(
-          "select session_id from players where room_id = $1 and session_id != $2 order by created_at asc limit 1",
-          [currentRoom.id, info.sessionId]
-        );
-        if (next.rowCount === 0) return; // no one else to give it to
+        const next = await db.withTransaction(async (client) => {
+          const result = await client.query(
+            "select session_id from players where room_id = $1 and session_id != $2 order by created_at asc limit 1",
+            [currentRoom.id, info.sessionId]
+          );
 
-        await db.query(
-          "update rooms set host_session_id = $1, updated_at = now() where id = $2",
-          [next.rows[0].session_id, currentRoom.id]
-        );
+          if (result.rowCount > 0) {
+            await client.query(
+              "update rooms set host_session_id = $1, updated_at = now() where id = $2",
+              [result.rows[0].session_id, currentRoom.id]
+            );
+          } else {
+            await client.query(
+              "update rooms set host_session_id = null, updated_at = now() where id = $1",
+              [currentRoom.id]
+            );
+          }
+
+          await client.query(
+            "delete from players where room_id = $1 and session_id = $2",
+            [currentRoom.id, info.sessionId]
+          );
+
+          return result;
+        });
+
+        if (next.rowCount === 0) return; // no one else to give it to
 
         const updatedRoom = await getRoomByCode(info.code);
         const state = await emitRoomState(updatedRoom);
