@@ -158,7 +158,7 @@ async function getRoomState(room) {
     getCalledNumbers(room.id),
     getWinners(room.id),
     db.query("select count(*)::int as count from players where room_id = $1", [room.id]),
-    db.query("select id, name from players where room_id = $1 order by created_at", [room.id]),
+    db.query("select id, name, wins from players where room_id = $1 order by created_at", [room.id]),
     room.host_session_id
       ? db.query("select id from players where room_id = $1 and session_id = $2", [room.id, room.host_session_id])
       : Promise.resolve({ rows: [] }),
@@ -178,7 +178,7 @@ async function getRoomState(room) {
     calledNumbers,
     winners,
     playerCount: countResult.rows[0].count,
-    players:     playersResult.rows.map((p) => ({ id: p.id, name: p.name })),
+    players:     playersResult.rows.map((p) => ({ id: p.id, name: p.name, wins: p.wins })),
     hostPlayerId: hostPlayerResult.rows[0]?.id || null,
     dangerNumbers
   };
@@ -550,10 +550,21 @@ app.post("/api/boards/:boardId/bingo", asyncHandler(async (req, res) => {
     return res.status(409).json({ error: "Bingo is not valid yet." });
   }
 
-  const insertResult = await db.query(
-    "insert into winners (room_id, player_id) values ($1, $2) on conflict do nothing returning id",
-    [board.room_id, board.player_id]
-  );
+  const insertResult = await db.withTransaction(async (client) => {
+    const result = await client.query(
+      "insert into winners (room_id, player_id) values ($1, $2) on conflict do nothing returning id",
+      [board.room_id, board.player_id]
+    );
+
+    if (result.rowCount > 0) {
+      await client.query(
+        "update players set wins = wins + 1, updated_at = now() where id = $1",
+        [board.player_id]
+      );
+    }
+
+    return result;
+  });
 
   const room = await getRoomByCode(board.code);
 

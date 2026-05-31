@@ -19,6 +19,8 @@ const state = {
 const droppedLimbs = new Set(); // `${playerId}-${limbIndex}` — tracks animated limbs
 const sessionWins  = {};        // { playerId → { name, wins } } — persists across resets
 
+const countedWinnerIds = new Set();
+
 const LIMB_KEYS = ['arm-l', 'arm-r', 'head', 'leg-l', 'leg-r'];
 
 const LIMB_NAMES = {
@@ -84,6 +86,29 @@ function renderScoreboard() {
       ? rowsHtml
       : '<div class="leaderboard-empty">No wins yet</div>';
   }
+}
+
+function syncScoreboard(players = [], winners = []) {
+  const hasServerWins = players.some((player) => Number.isFinite(Number(player.wins)));
+
+  players.forEach((player) => {
+    const wins = hasServerWins ? Number(player.wins) || 0 : (sessionWins[player.id]?.wins || 0);
+    if (!sessionWins[player.id]) sessionWins[player.id] = { name: player.name, wins };
+    sessionWins[player.id].name = player.name;
+    sessionWins[player.id].wins = wins;
+  });
+
+  if (hasServerWins) return;
+
+  winners.forEach((winner) => {
+    const playerId = winner.playerId;
+    if (!playerId || countedWinnerIds.has(winner.id)) return;
+
+    if (!sessionWins[playerId]) sessionWins[playerId] = { name: winner.name, wins: 0 };
+    sessionWins[playerId].name = winner.name;
+    sessionWins[playerId].wins++;
+    countedWinnerIds.add(winner.id);
+  });
 }
 
 // ── Roll sounds ──────────────────────────────────────────────────────────────
@@ -643,9 +668,7 @@ function applyRoomState(roomState) {
   state.players = roomState.players || state.players;
   if (roomState.dangerNumbers) state.dangerNumbers = roomState.dangerNumbers;
 
-  (state.players || []).forEach(p => {
-    if (!sessionWins[p.id]) sessionWins[p.id] = { name: p.name, wins: 0 };
-  });
+  syncScoreboard(state.players || [], state.winners || []);
   renderScoreboard();
 
   localStorage.setItem('bingoRoomCode', state.roomCode);
@@ -745,11 +768,6 @@ function connectSocket(code) {
       }
     });
     state.socket.on('winner-added', (roomState) => {
-      (roomState.winners || []).forEach(w => {
-        if (!sessionWins[w.id]) sessionWins[w.id] = { name: w.name, wins: 0 };
-        if (!state.winners.find(v => v.id === w.id)) sessionWins[w.id].wins++;
-      });
-      renderScoreboard();
       applyRoomState(roomState);
       celebrateNewWinners(roomState.winners || []);
     });
